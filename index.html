@@ -4,9 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARROWOW • Analytics</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" href="apple-icon.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         body { font-family: 'Inter', system_ui, sans-serif; background: #050505; color: #e5e7eb; }
         .glass { background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(148, 163, 184, 0.12); }
@@ -225,7 +233,7 @@
             if (viewsChart) viewsChart.destroy();
             if (performanceChart) performanceChart.destroy();
 
-            // Monthly Trend
+            // Monthly Views Trend
             const sortedTrend = [...currentCharacters];
             viewsChart = new ApexCharts(document.querySelector("#viewsChart"), {
                 chart: { type: 'line', height: 340, toolbar: { show: true }, animations: { enabled: true } },
