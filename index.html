@@ -280,4 +280,51 @@
         }
 
         function openCharacterModal(char) {
-            current
+            currentModalCharacter = char;
+            document.getElementById('character-modal').classList.remove('hidden');
+            document.getElementById('modal-character-name').innerHTML = char.name;
+
+            const totalV = char.total_views.reduce((a,b)=>a+b,0);
+            const totalE = char.total_engagements.reduce((a,b)=>a+b,0);
+            const latestF = Math.max(...char.total_followers);
+            const rate = totalV > 0 ? ((totalE/totalV)*100).toFixed(1) : 0;
+
+            document.getElementById('modal-summary').innerHTML = `
+                <div class="glass rounded-2xl p-5"><div class="text-sm text-slate-400">Total Views</div><div class="text-3xl font-semibold">${totalV.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-sm text-slate-400">Total Followers</div><div class="text-3xl font-semibold">${latestF}</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-sm text-slate-400">Total Engagements</div><div class="text-3xl font-semibold">${totalE.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-sm text-slate-400">Engagement Rate</div><div class="text-3xl font-semibold">${rate}%</div></div>
+            `;
+            renderModalMonthlyTable(char);
+        }
+
+        function renderModalMonthlyTable(char) {
+            const container = document.getElementById('modal-monthly-table');
+            let html = `<table class="w-full text-sm"><thead><tr class="border-b border-slate-700 text-slate-400">
+                <th class="text-left py-3">Month</th><th class="text-right py-3">Views</th>
+                <th class="text-right py-3">Followers</th><th class="text-right py-3">Engagements</th><th class="text-right py-3">Rate</th></tr></thead><tbody>`;
+
+            char.months.forEach((m, i) => {
+                const v = char.total_views[i]||0, f = char.total_followers[i]||0, e = char.total_engagements[i]||0;
+                const rate = v > 0 ? ((e/v)*100).toFixed(1) : '0';
+                html += `<tr class="border-b border-slate-800"><td class="py-3">${m}</td>
+                    <td class="text-right">${v}</td><td class="text-right">${f}</td>
+                    <td class="text-right">${e}</td><td class="text-right text-emerald-400">${rate}%</td></tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function sortModalTable() {
+            if (!currentModalCharacter) return;
+            renderModalMonthlyTable(currentModalCharacter);
+        }
+
+        function closeModal() {
+            document.getElementById('character-modal').classList.add('hidden');
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
