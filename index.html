@@ -104,6 +104,7 @@
             </div>
 
             <div class="p-8 overflow-y-auto max-h-[70vh]">
+                <!-- Overview Tab -->
                 <div id="modal-tab-0">
                     <div id="modal-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"></div>
 
@@ -120,6 +121,7 @@
                     <div id="modal-monthly-table" class="overflow-x-auto"></div>
                 </div>
 
+                <!-- Platform Breakdown Tab -->
                 <div id="modal-tab-1" class="hidden">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         <div class="lg:col-span-7">
@@ -148,12 +150,15 @@
         let growthChart = null;
         let currentModalCharacter = null;
 
+        // Modal chart instances
+        let modalPlatformTrendChart = null;
+        let modalPlatformShareChart = null;
+
         const avatarMap = {
             "Miranda Kiera": "miranda.png", "Ava Sinclair": "ava.png", "Kane Voss": "kane.png",
             "Chloe Mitchell": "chloe.png", "Melina Mayer": "melina.png", "Aussie Spirit": "Aussie.png"
         };
 
-        // Consistent Character Colors
         const characterColors = {
             "Miranda Kiera": "#67E8F9",
             "Ava Sinclair": "#9EEBFF",
@@ -348,6 +353,7 @@
             container.innerHTML = html;
         }
 
+        // ==================== MODAL FUNCTIONS (FIXED) ====================
         function openCharacterModal(char) {
             currentModalCharacter = char;
             document.getElementById('character-modal').classList.remove('hidden');
@@ -358,84 +364,66 @@
         }
 
         function switchModalTab(tabIndex) {
-            document.getElementById('modal-tab-0').classList.toggle('hidden', tabIndex !== 0);
-            document.getElementById('modal-tab-1').classList.toggle('hidden', tabIndex !== 1);
-            document.getElementById('tab-0').classList.toggle('active', tabIndex === 0);
-            document.getElementById('tab-1').classList.toggle('active', tabIndex === 1);
-            if (tabIndex === 1 && currentModalCharacter) renderPlatformBreakdown(currentModalCharacter);
-        }
+            document.getElementById('modal-tab-0').classList.add('hidden');
+            document.getElementById('modal-tab-1').classList.add('hidden');
+            document.getElementById('tab-0').classList.remove('active');
+            document.getElementById('tab-1').classList.remove('active');
 
-        function renderModalOverview(char) {
-            const totalV = char.total_views.reduce((a,b)=>a+b,0);
-            const totalE = char.total_engagements.reduce((a,b)=>a+b,0);
-            const latestF = Math.max(...char.total_followers);
-            const growth = calculateMoMGrowth(char);
+            if (tabIndex === 0) {
+                document.getElementById('modal-tab-0').classList.remove('hidden');
+                document.getElementById('tab-0').classList.add('active');
+            } else {
+                document.getElementById('modal-tab-1').classList.remove('hidden');
+                document.getElementById('tab-1').classList.add('active');
 
-            document.getElementById('modal-summary').innerHTML = `
-                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Views</div><div class="text-3xl font-semibold">${totalV.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Followers</div><div class="text-3xl font-semibold">${latestF}</div></div>
-                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Engagements</div><div class="text-3xl font-semibold">${totalE.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">MoM Growth</div><div class="text-3xl font-semibold text-[#67E8F9]">${growth.toFixed(1)}%</div></div>
-            `;
-            renderModalMonthlyTable(char);
-        }
+                if (modalPlatformTrendChart) modalPlatformTrendChart.destroy();
+                if (modalPlatformShareChart) modalPlatformShareChart.destroy();
 
-        function renderModalMonthlyTable(char) {
-            const container = document.getElementById('modal-monthly-table');
-            let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
-                <th class="text-left py-3">Month</th><th class="text-right py-3">Views</th>
-                <th class="text-right py-3">Followers</th><th class="text-right py-3">Engagements</th><th class="text-right py-3">Rate</th></tr></thead><tbody>`;
-
-            char.months.forEach((m, i) => {
-                const v = char.total_views[i]||0, f = char.total_followers[i]||0, e = char.total_engagements[i]||0;
-                const rate = v > 0 ? ((e/v)*100).toFixed(1) : '0';
-                html += `<tr class="border-b border-[#2A2F3A]"><td class="py-3">${m}</td>
-                    <td class="text-right">${v}</td><td class="text-right">${f}</td>
-                    <td class="text-right">${e}</td><td class="text-right text-[#67E8F9]">${rate}%</td></tr>`;
-            });
-            html += `</tbody></table>`;
-            container.innerHTML = html;
-        }
-
-        function sortModalMonthlyTable() {
-            if (!currentModalCharacter) return;
-            // Add sorting logic here if needed
+                renderPlatformBreakdown(currentModalCharacter);
+            }
         }
 
         function renderPlatformBreakdown(char) {
+            if (!char) return;
             const platforms = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
             const p = char.platforms || {};
 
-            new ApexCharts(document.querySelector("#modal-platform-trend-chart"), {
+            modalPlatformTrendChart = new ApexCharts(document.querySelector("#modal-platform-trend-chart"), {
                 chart: { type: 'bar', height: 280 },
-                series: platforms.map(pl => ({ name: pl, data: p[pl]?.views || [] })),
-                xaxis: { categories: char.months },
+                series: platforms.map(pl => ({ name: pl, data: p[pl]?.views || [0,0,0,0] })),
+                xaxis: { categories: char.months || [] },
                 colors: ['#67E8F9', '#9EEBFF', '#7DADCA', '#f59e0b']
-            }).render();
+            });
+            modalPlatformTrendChart.render();
 
             const totalPerPlatform = platforms.map(pl => (p[pl]?.views || []).reduce((a,b)=>a+b,0));
-            new ApexCharts(document.querySelector("#modal-platform-share-chart"), {
+            modalPlatformShareChart = new ApexCharts(document.querySelector("#modal-platform-share-chart"), {
                 chart: { type: 'donut', height: 280 },
-                series: totalPerPlatform,
+                series: totalPerPlatform.length > 0 ? totalPerPlatform : [1,1,1,1],
                 labels: platforms,
                 colors: ['#67E8F9', '#9EEBFF', '#7DADCA', '#f59e0b']
-            }).render();
+            });
+            modalPlatformShareChart.render();
 
             let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
-                <th class="text-left py-3">Month</th><th class="text-right">Instagram</th><th class="text-right">TikTok</th>
-                <th class="text-right">YouTube</th><th class="text-right">Facebook</th></tr></thead><tbody>`;
-            char.months.forEach((m, i) => {
+                <th class="text-left py-3">Month</th><th class="text-right">Instagram</th>
+                <th class="text-right">TikTok</th><th class="text-right">YouTube</th><th class="text-right">Facebook</th></tr></thead><tbody>`;
+            (char.months || []).forEach((m, i) => {
                 html += `<tr class="border-b border-[#2A2F3A]"><td class="py-3">${m}</td>
-                    <td class="text-right">${p.Instagram?.views[i] || 0}</td>
-                    <td class="text-right">${p.TikTok?.views[i] || 0}</td>
-                    <td class="text-right">${p.YouTube?.views[i] || 0}</td>
-                    <td class="text-right">${p.Facebook?.views[i] || 0}</td></tr>`;
+                    <td class="text-right">${p.Instagram?.views?.[i] || 0}</td>
+                    <td class="text-right">${p.TikTok?.views?.[i] || 0}</td>
+                    <td class="text-right">${p.YouTube?.views?.[i] || 0}</td>
+                    <td class="text-right">${p.Facebook?.views?.[i] || 0}</td></tr>`;
             });
             html += `</tbody></table>`;
             document.getElementById('modal-platform-table').innerHTML = html;
         }
 
         function closeModal() {
+            if (modalPlatformTrendChart) modalPlatformTrendChart.destroy();
+            if (modalPlatformShareChart) modalPlatformShareChart.destroy();
+            modalPlatformTrendChart = null;
+            modalPlatformShareChart = null;
             document.getElementById('character-modal').classList.add('hidden');
         }
 
