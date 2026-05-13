@@ -3,137 +3,342 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARROWOW • Social Analytics Dashboard</title>
+    <title>ARROWOW • Analytics Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
-        body { font-family: 'Poppins', sans-serif; background: #0a0a0a; color: #e5e7eb; }
-        .glass { background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(24px); border: 1px solid rgba(103, 232, 249, 0.25); }
-        .card-hover:hover { transform: translateY(-8px); box-shadow: 0 30px 70px -15px rgb(103 232 249 / 0.4); }
+        body { font-family: 'Poppins', sans-serif; background: #050505; color: #e5e7eb; }
+        .glass { background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(32px); border: 1px solid rgba(103, 232, 249, 0.2); }
+        .metric-value { font-feature-settings: "tnum"; }
+        .section-title { font-size: 1.35rem; letter-spacing: -.025em; }
     </style>
 </head>
-<body class="min-h-screen pb-20">
+<body class="min-h-screen pb-24">
     <div class="max-w-screen-2xl mx-auto px-8 pt-8">
-        <!-- Header -->
-        <div class="flex justify-between items-center mb-12">
+        <!-- HEADER -->
+        <div class="flex justify-between items-center mb-10">
             <div class="flex items-center gap-x-5">
                 <div class="w-16 h-16 bg-gradient-to-br from-blue-600 via-cyan-500 to-purple-600 rounded-3xl flex items-center justify-center text-4xl font-black text-white shadow-2xl">A</div>
                 <div>
-                    <h1 class="text-5xl font-bold tracking-tighter">ARROWOW</h1>
-                    <p class="text-cyan-400 text-xl -mt-2">SOCIAL ANALYTICS DASHBOARD</p>
+                    <h1 class="text-6xl font-bold tracking-tighter">ARROWOW</h1>
+                    <p class="text-cyan-400 text-2xl -mt-3">SOCIAL ANALYTICS</p>
                 </div>
             </div>
-            <div id="last-updated" class="text-emerald-400 font-medium flex items-center gap-3 text-lg"></div>
+            <div class="text-right">
+                <div id="last-updated" class="text-emerald-400 font-medium flex items-center justify-end gap-2 text-lg">
+                    <div class="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                    LIVE DATA
+                </div>
+                <div class="text-slate-400 text-sm">January – December 2025</div>
+            </div>
         </div>
 
-        <!-- Global Stats -->
-        <div id="global-stats" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16"></div>
+        <!-- EXECUTIVE SUMMARY -->
+        <div class="mb-10">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="section-title font-semibold">Executive Summary</h2>
+                <div class="text-sm text-slate-400">3 Characters • 4 Platforms • Monthly Granularity</div>
+            </div>
+            
+            <div id="kpi-cards" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
+        </div>
 
-        <!-- Characters -->
-        <h2 class="text-4xl font-semibold mb-8 text-white">Characters Performance</h2>
-        <div id="characters-container" class="grid grid-cols-1 lg:grid-cols-3 gap-8"></div>
+        <!-- CHARACTERS SECTION -->
+        <div class="mb-12">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="section-title font-semibold">Characters Performance</h2>
+                <div class="text-sm text-slate-400">Click a card to filter charts</div>
+            </div>
+            <div id="character-cards" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        </div>
+
+        <!-- CHARTS ROW -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-8 mb-12">
+            <!-- Monthly Views Trend -->
+            <div class="xl:col-span-7 glass rounded-3xl p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-semibold text-xl">Monthly Views Trend</h3>
+                    <div class="text-xs px-3 py-1 bg-slate-800 rounded-full">All Characters</div>
+                </div>
+                <canvas id="viewsChart" class="h-80"></canvas>
+            </div>
+
+            <!-- Platform Performance -->
+            <div class="xl:col-span-5 glass rounded-3xl p-8">
+                <h3 class="font-semibold text-xl mb-6">Performance by Platform</h3>
+                <canvas id="platformChart" class="h-80"></canvas>
+            </div>
+        </div>
+
+        <!-- Rankings + Platform Table -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            <!-- Top Characters -->
+            <div class="xl:col-span-5 glass rounded-3xl p-8">
+                <h3 class="font-semibold text-xl mb-6">Top Characters by Engagement</h3>
+                <div id="ranking-list" class="space-y-3"></div>
+            </div>
+
+            <!-- Platform Detailed Table -->
+            <div class="xl:col-span-7 glass rounded-3xl p-8">
+                <h3 class="font-semibold text-xl mb-6">Platform Breakdown (All Characters)</h3>
+                <div id="platform-table"></div>
+            </div>
+        </div>
     </div>
 
     <script>
-        const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRE8mWvyuqQFvXxjCwE8h1zeFVv1yiJes0cp7I4Y6mbnLkWdOYGj66EKxwfgpDLD3HpLNu3uar9ayyq/pubhtml";
-
-        async function loadData() {
-            try {
-                const res = await fetch(SHEET_URL);
-                const html = await res.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, "text/html");
-                const tables = doc.querySelectorAll("table");
-
-                const characters = [];
-
-                tables.forEach(table => {
-                    const rows = table.querySelectorAll("tr");
-                    if (rows.length < 5) return;
-
-                    // Get character name from first row
-                    let name = rows[0].textContent.trim().split('\n')[0] || "Unknown";
-
-                    let views = [], followers = [], engagement = [];
-
-                    for (let i = 2; i < rows.length; i++) {
-                        const cells = rows[i].querySelectorAll("td");
-                        if (cells.length >= 4) {
-                            views.push(parseInt(cells[1].textContent) || 0);
-                            followers.push(parseInt(cells[2].textContent) || 0);
-                            engagement.push(parseInt(cells[3].textContent) || 0);
-                        }
-                    }
-
-                    if (views.length > 0) {
-                        characters.push({ name, views, followers, engagement });
-                    }
-                });
-
-                if (characters.length === 0) throw new Error("No data");
-
-                renderDashboard(characters);
-            } catch (e) {
-                console.error(e);
-                // Fallback demo data
-                renderDashboard([
-                    {name: "Miranda Kiera", views: Array(12).fill(800), followers: Array(12).fill(200), engagement: Array(12).fill(60834)},
-                    {name: "Ava Sinclair", views: Array(12).fill(880), followers: Array(12).fill(220), engagement: Array(12).fill(66917)},
-                    {name: "Kane Voss", views: Array(12).fill(800), followers: Array(12).fill(200), engagement: Array(12).fill(60834)}
-                ]);
+        // ==================== DATA ====================
+        const charactersData = [
+            {
+                name: "Miranda Kiera",
+                color: "#3b82f6",
+                months: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+                total_views: [800,800,800,800,800,800,800,800,800,800,0,0],
+                total_followers: [200,200,200,200,200,200,200,200,200,200,0,0],
+                total_engagements: [60834,60834,60834,60834,60834,60834,60834,60834,60834,60834,0,0],
+                platforms: {
+                    Instagram: {views: [250,250,250,250,250,250,250,250,250,250,0,0], followers: [80,80,80,80,80,80,80,80,80,80,0,0], engagements: [18500,18500,18500,18500,18500,18500,18500,18500,18500,18500,0,0]},
+                    TikTok: {views: [220,220,220,220,220,220,220,220,220,220,0,0], followers: [50,50,50,50,50,50,50,50,50,50,0,0], engagements: [22000,22000,22000,22000,22000,22000,22000,22000,22000,22000,0,0]},
+                    YouTube: {views: [180,180,180,180,180,180,180,180,180,180,0,0], followers: [40,40,40,40,40,40,40,40,40,40,0,0], engagements: [12000,12000,12000,12000,12000,12000,12000,12000,12000,12000,0,0]},
+                    Facebook: {views: [150,150,150,150,150,150,150,150,150,150,0,0], followers: [30,30,30,30,30,30,30,30,30,30,0,0], engagements: [8334,8334,8334,8334,8334,8334,8334,8334,8334,8334,0,0]}
+                }
+            },
+            {
+                name: "Ava Sinclair",
+                color: "#a855f7",
+                months: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+                total_views: [800,800,800,800,800,800,800,800,800,800,0,800],
+                total_followers: [200,200,200,200,200,200,200,200,200,200,0,200],
+                total_engagements: [60834,60834,60834,60834,60834,60834,60834,60834,60834,60834,0,60834],
+                platforms: {
+                    Instagram: {views: [250,250,250,250,250,250,250,250,250,250,0,250], followers: [80,80,80,80,80,80,80,80,80,80,0,80], engagements: [18500,18500,18500,18500,18500,18500,18500,18500,18500,18500,0,18500]},
+                    TikTok: {views: [220,220,220,220,220,220,220,220,220,220,0,220], followers: [50,50,50,50,50,50,50,50,50,50,0,50], engagements: [22000,22000,22000,22000,22000,22000,22000,22000,22000,22000,0,22000]},
+                    YouTube: {views: [180,180,180,180,180,180,180,180,180,180,0,180], followers: [40,40,40,40,40,40,40,40,40,40,0,40], engagements: [12000,12000,12000,12000,12000,12000,12000,12000,12000,12000,0,12000]},
+                    Facebook: {views: [150,150,150,150,150,150,150,150,150,150,0,150], followers: [30,30,30,30,30,30,30,30,30,30,0,30], engagements: [8334,8334,8334,8334,8334,8334,8334,8334,8334,8334,0,8334]}
+                }
+            },
+            {
+                name: "Kane Voss",
+                color: "#14b8a6",
+                months: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+                total_views: [800,800,800,800,800,800,0,800,800,800,0,800],
+                total_followers: [200,200,200,200,200,200,0,200,200,200,0,200],
+                total_engagements: [60834,60834,60834,60834,60834,60834,0,60834,60834,60834,0,60834],
+                platforms: {
+                    Instagram: {views: [250,250,250,250,250,250,0,250,250,250,0,250], followers: [80,80,80,80,80,80,0,80,80,80,0,80], engagements: [18500,18500,18500,18500,18500,18500,0,18500,18500,18500,0,18500]},
+                    TikTok: {views: [220,220,220,220,220,220,0,220,220,220,0,220], followers: [50,50,50,50,50,50,0,50,50,50,0,50], engagements: [22000,22000,22000,22000,22000,22000,0,22000,22000,22000,0,22000]},
+                    YouTube: {views: [180,180,180,180,180,180,0,180,180,180,0,180], followers: [40,40,40,40,40,40,0,40,40,40,0,40], engagements: [12000,12000,12000,12000,12000,12000,0,12000,12000,12000,0,12000]},
+                    Facebook: {views: [150,150,150,150,150,150,0,150,150,150,0,150], followers: [30,30,30,30,30,30,0,30,30,30,0,30], engagements: [8334,8334,8334,8334,8334,8334,0,8334,8334,8334,0,8334]}
+                }
             }
-        }
+        ];
 
-        function renderDashboard(characters) {
+        // ==================== RENDER FUNCTIONS ====================
+        function renderKPIs() {
             let totalViews = 0, totalFollowers = 0, totalEng = 0;
-
-            characters.forEach(c => {
-                totalViews += c.views.reduce((a,b) => a+b, 0);
-                totalFollowers += c.followers.reduce((a,b) => a+b, 0);
-                totalEng += c.engagement.reduce((a,b) => a+b, 0);
+            
+            charactersData.forEach(c => {
+                totalViews += c.total_views.reduce((a,b)=>a+b,0);
+                totalFollowers += Math.max(...c.total_followers); // latest
+                totalEng += c.total_engagements.reduce((a,b)=>a+b,0);
             });
 
-            // Global Stats
-            document.getElementById('global-stats').innerHTML = `
-                <div class="glass rounded-3xl p-8 card-hover"><p class="text-slate-400">TOTAL VIEWS</p><p class="text-6xl font-bold">${totalViews.toLocaleString()}</p></div>
-                <div class="glass rounded-3xl p-8 card-hover"><p class="text-slate-400">TOTAL FOLLOWERS</p><p class="text-6xl font-bold">${totalFollowers.toLocaleString()}</p></div>
-                <div class="glass rounded-3xl p-8 card-hover"><p class="text-slate-400">TOTAL ENGAGEMENT</p><p class="text-6xl font-bold">${totalEng.toLocaleString()}</p></div>
-                <div class="glass rounded-3xl p-8 card-hover"><p class="text-slate-400">ACTIVE CHARACTERS</p><p class="text-6xl font-bold">${characters.length}</p></div>
-            `;
+            const engagementRate = ((totalEng / totalViews) * 100).toFixed(1);
 
-            // Characters Cards
-            const container = document.getElementById('characters-container');
+            document.getElementById('kpi-cards').innerHTML = `
+                <div class="glass rounded-3xl p-7">
+                    <div class="text-slate-400 text-sm">TOTAL VIEWS</div>
+                    <div class="metric-value text-5xl font-semibold mt-2">${totalViews.toLocaleString()}</div>
+                </div>
+                <div class="glass rounded-3xl p-7">
+                    <div class="text-slate-400 text-sm">TOTAL FOLLOWERS</div>
+                    <div class="metric-value text-5xl font-semibold mt-2">${totalFollowers.toLocaleString()}</div>
+                </div>
+                <div class="glass rounded-3xl p-7">
+                    <div class="text-slate-400 text-sm">TOTAL ENGAGEMENTS</div>
+                    <div class="metric-value text-5xl font-semibold mt-2">${totalEng.toLocaleString()}</div>
+                </div>
+                <div class="glass rounded-3xl p-7">
+                    <div class="text-slate-400 text-sm">AVG ENG. RATE</div>
+                    <div class="metric-value text-5xl font-semibold mt-2">${engagementRate}<span class="text-2xl">%</span></div>
+                </div>
+            `;
+        }
+
+        function renderCharacterCards() {
+            const container = document.getElementById('character-cards');
             container.innerHTML = '';
 
-            characters.forEach(char => {
-                const totalV = char.views.reduce((a,b)=>a+b,0);
-                const totalF = char.followers.reduce((a,b)=>a+b,0);
-                const totalE = char.engagement.reduce((a,b)=>a+b,0);
+            charactersData.forEach((char, index) => {
+                const totalV = char.total_views.reduce((a,b)=>a+b,0);
+                const totalE = char.total_engagements.reduce((a,b)=>a+b,0);
+                const latestF = Math.max(...char.total_followers);
+                const rate = ((totalE / totalV) * 100).toFixed(1);
 
-                const cardHTML = `
-                    <div class="glass rounded-3xl p-8 card-hover">
-                        <div class="flex items-center gap-4 mb-8">
-                            <div class="w-14 h-14 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center text-3xl font-bold text-white">${char.name[0]}</div>
-                            <div>
-                                <h3 class="text-2xl font-semibold">${char.name}</h3>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-6">
-                            <div class="text-center"><div class="text-xs text-slate-400">VIEWS</div><div class="text-4xl font-bold">${totalV}</div></div>
-                            <div class="text-center"><div class="text-xs text-slate-400">FOLLOWERS</div><div class="text-4xl font-bold">${totalF}</div></div>
-                            <div class="text-center"><div class="text-xs text-slate-400">ENGAGEMENT</div><div class="text-4xl font-bold">${(totalE/1000).toFixed(0)}K</div></div>
+                const card = document.createElement('div');
+                card.className = `glass rounded-3xl p-7 cursor-pointer hover:border-cyan-400 border border-transparent transition-all`;
+                card.innerHTML = `
+                    <div class="flex items-center gap-4 mb-6">
+                        <div style="background: ${char.color}" class="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">${char.name[0]}</div>
+                        <div>
+                            <div class="font-semibold text-xl">${char.name}</div>
+                            <div class="text-xs text-slate-400">Influencer</div>
                         </div>
                     </div>
+                    <div class="grid grid-cols-2 gap-y-4 text-sm">
+                        <div><span class="text-slate-400">Views:</span> <span class="font-semibold">${totalV.toLocaleString()}</span></div>
+                        <div><span class="text-slate-400">Followers:</span> <span class="font-semibold">${latestF}</span></div>
+                        <div><span class="text-slate-400">Engagements:</span> <span class="font-semibold">${totalE.toLocaleString()}</span></div>
+                        <div><span class="text-slate-400">Eng. Rate:</span> <span class="font-semibold">${rate}%</span></div>
+                    </div>
                 `;
-                container.insertAdjacentHTML('beforeend', cardHTML);
+                card.onclick = () => highlightCharacter(index);
+                container.appendChild(card);
             });
-
-            document.getElementById('last-updated').innerHTML = `✅ Updated just now`;
         }
 
-        window.onload = loadData;
+        let currentChart = null;
+        function renderCharts() {
+            // Views Trend
+            const ctx = document.getElementById('viewsChart');
+            if (currentChart) currentChart.destroy();
+
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: charactersData[0].months,
+                    datasets: charactersData.map(c => ({
+                        label: c.name,
+                        data: c.total_views,
+                        borderColor: c.color,
+                        borderWidth: 3.5,
+                        tension: 0.35,
+                        pointRadius: 0
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'top', labels: { color: '#ddd', padding: 20 } } },
+                    scales: { y: { grid: { color: '#1f2937' } }, x: { grid: { color: '#1f2937' } } }
+                }
+            });
+
+            // Platform Pie
+            const ptx = document.getElementById('platformChart');
+            let ig = 0, tt = 0, yt = 0, fb = 0;
+            charactersData.forEach(c => {
+                ig += c.platforms.Instagram.views.reduce((a,b)=>a+b,0);
+                tt += c.platforms.TikTok.views.reduce((a,b)=>a+b,0);
+                yt += c.platforms.YouTube.views.reduce((a,b)=>a+b,0);
+                fb += c.platforms.Facebook.views.reduce((a,b)=>a+b,0);
+            });
+
+            new Chart(ptx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Instagram', 'TikTok', 'YouTube', 'Facebook'],
+                    datasets: [{
+                        data: [ig, tt, yt, fb],
+                        backgroundColor: ['#3b82f6', '#22d3ee', '#a855f7', '#eab308'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { cutout: '68%', plugins: { legend: { position: 'bottom', labels: { color: '#ddd', padding: 15 } } } }
+            });
+        }
+
+        function renderRankings() {
+            const container = document.getElementById('ranking-list');
+            const sorted = [...charactersData].sort((a,b) => 
+                b.total_engagements.reduce((x,y)=>x+y,0) - a.total_engagements.reduce((x,y)=>x+y,0)
+            );
+
+            container.innerHTML = sorted.map((char, i) => {
+                const totalE = char.total_engagements.reduce((a,b)=>a+b,0);
+                return `
+                    <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-900/60">
+                        <div class="flex items-center gap-4">
+                            <div class="text-2xl font-bold text-slate-500 w-6">#${i+1}</div>
+                            <div style="background: ${char.color}" class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold">${char.name[0]}</div>
+                            <div class="font-medium">${char.name}</div>
+                        </div>
+                        <div class="font-semibold text-xl">${totalE.toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderPlatformTable() {
+            const container = document.getElementById('platform-table');
+            
+            let html = `<table class="w-full text-sm">
+                <thead><tr class="border-b border-slate-700 text-slate-400">
+                    <th class="text-left py-4">Platform</th>
+                    <th class="text-right py-4">Views</th>
+                    <th class="text-right py-4">Followers</th>
+                    <th class="text-right py-4">Engagements</th>
+                    <th class="text-right py-4">Eng. Rate</th>
+                </tr></thead><tbody>`;
+
+            const platforms = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
+            platforms.forEach(p => {
+                let v=0, f=0, e=0;
+                charactersData.forEach(c => {
+                    v += c.platforms[p].views.reduce((a,b)=>a+b,0);
+                    f += Math.max(...c.platforms[p].followers);
+                    e += c.platforms[p].engagements.reduce((a,b)=>a+b,0);
+                });
+                const rate = ((e / v) * 100).toFixed(1);
+                html += `<tr class="border-b border-slate-800">
+                    <td class="py-4 font-medium">${p}</td>
+                    <td class="text-right">${v.toLocaleString()}</td>
+                    <td class="text-right">${f}</td>
+                    <td class="text-right">${e.toLocaleString()}</td>
+                    <td class="text-right font-medium text-emerald-400">${rate}%</td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function highlightCharacter(index) {
+            // Simple highlight effect
+            const cards = document.querySelectorAll('#character-cards > div');
+            cards.forEach((c, i) => {
+                if (i === index) {
+                    c.style.borderColor = charactersData[index].color;
+                    c.style.boxShadow = `0 0 0 3px ${charactersData[index].color}30`;
+                } else {
+                    c.style.borderColor = 'transparent';
+                    c.style.boxShadow = 'none';
+                }
+            });
+            
+            // You can expand this to filter charts if needed
+            setTimeout(() => {
+                cards.forEach(c => { c.style.borderColor = 'transparent'; c.style.boxShadow = 'none'; });
+            }, 2200);
+        }
+
+        // ==================== INIT ====================
+        function initDashboard() {
+            renderKPIs();
+            renderCharacterCards();
+            renderCharts();
+            renderRankings();
+            renderPlatformTable();
+            
+            document.getElementById('last-updated').innerHTML = `
+                <div class="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                Updated just now
+            `;
+            
+            console.log('%c[ARROWOW] Dashboard initialized successfully', 'color:#67e8f9');
+        }
+
+        window.onload = initDashboard;
     </script>
 </body>
 </html>
