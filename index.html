@@ -9,7 +9,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Poppins', sans-serif; background: #050505; color: #e5e7eb; }
-        .glass { background: rgba(10, 15, 30, 0.95); backdrop-filter: blur(32px); border: 1px solid rgba(103, 232, 249, 0.15); }
+        .glass { 
+            background: rgba(10, 15, 30, 0.95); 
+            backdrop-filter: blur(32px); 
+            border: 1px solid rgba(103, 232, 249, 0.15); 
+        }
+        .section-title { font-size: 1.35rem; letter-spacing: -.025em; }
+        .chart-container { position: relative; }
     </style>
 </head>
 <body class="min-h-screen pb-24">
@@ -17,13 +23,13 @@
         <!-- Header -->
         <div class="flex justify-between items-center mb-10">
             <div class="flex items-center gap-x-5">
-                <div class="w-16 h-16 bg-gradient-to-br from-[#052659] via-[#1e3a8a] to-[#67e8f9] rounded-3xl flex items-center justify-center text-4xl font-black text-white">A</div>
+                <div class="w-16 h-16 bg-gradient-to-br from-[#052659] via-[#1e3a8a] to-[#67e8f9] rounded-3xl flex items-center justify-center text-4xl font-black text-white shadow-2xl">A</div>
                 <div>
                     <h1 class="text-6xl font-bold tracking-tighter">ARROWOW</h1>
                     <p class="text-[#67e8f9] text-2xl -mt-3">ANALYTICS</p>
                 </div>
             </div>
-            <div id="last-updated" class="text-emerald-400 font-medium"></div>
+            <div id="last-updated" class="text-emerald-400 font-medium flex items-center gap-2"></div>
         </div>
 
         <!-- KPIs -->
@@ -32,38 +38,47 @@
         <!-- Characters -->
         <div class="mb-12">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-semibold">Characters</h2>
-                <select id="char-sort" onchange="sortCharacters()" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
-                    <option value="engagement">Sort: Engagements ↓</option>
-                    <option value="views">Sort: Views ↓</option>
-                    <option value="followers">Sort: Followers ↓</option>
-                    <option value="rate">Sort: Eng. Rate ↓</option>
+                <h2 class="section-title font-semibold">Characters</h2>
+                <select id="char-sort" onchange="sortAndRenderCharacters()" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
+                    <option value="engagement">Sort by Engagements</option>
+                    <option value="views">Sort by Views</option>
+                    <option value="followers">Sort by Followers</option>
+                    <option value="rate">Sort by Eng. Rate</option>
                 </select>
             </div>
-            <div id="character-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            <div id="character-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"></div>
         </div>
 
         <!-- Charts -->
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-8 mb-12">
+            <!-- Monthly Trend -->
             <div class="xl:col-span-7 glass rounded-3xl p-8">
                 <h3 class="font-semibold text-xl mb-6">Monthly Views Trend</h3>
-                <canvas id="viewsChart" class="h-80"></canvas>
+                <div class="chart-container h-80">
+                    <canvas id="viewsChart"></canvas>
+                </div>
             </div>
+
+            <!-- Character Performance -->
             <div class="xl:col-span-5 glass rounded-3xl p-8">
                 <h3 class="font-semibold text-xl mb-6">Total Views by Character</h3>
-                <canvas id="characterViewsChart" class="h-80"></canvas>
+                <div class="chart-container h-80">
+                    <canvas id="charPerformanceChart"></canvas>
+                </div>
             </div>
         </div>
 
-        <!-- Monthly Table -->
+        <!-- Monthly Data Table -->
         <div class="glass rounded-3xl p-8">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="font-semibold text-xl">Monthly Performance</h3>
-                <select id="character-filter" onchange="renderMonthlyTable()" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
-                    <option value="all">All Characters</option>
-                </select>
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <h3 class="font-semibold text-xl">Monthly Performance Data</h3>
+                <div class="flex gap-3">
+                    <select id="table-character-filter" onchange="renderMonthlyTable()" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
+                        <option value="all">All Characters</option>
+                    </select>
+                </div>
             </div>
-            <div id="monthly-table" class="overflow-x-auto"></div>
+            <div id="monthly-table" class="overflow-x-auto max-h-[500px]"></div>
         </div>
     </div>
 
@@ -71,13 +86,13 @@
         const API_URL = "https://script.google.com/macros/s/AKfycby0OKihbLgl9yRGk7qxfjPZgEChxh1jwfEPHeET_mARjFQfV3rWtB9nnxV-9BlI-OYB/exec";
 
         let currentCharacters = [];
-        let viewsChart = null;
-        let charViewsChart = null;
+        let viewsChartInstance = null;
+        let charPerformanceInstance = null;
 
         async function loadData() {
             const status = document.getElementById('last-updated');
             try {
-                status.innerHTML = `⏳ Loading...`;
+                status.innerHTML = `⏳ Loading live data...`;
                 const res = await fetch(API_URL);
                 const data = await res.json();
                 currentCharacters = Object.values(data || {});
@@ -90,20 +105,17 @@
         }
 
         function getDemoData() {
-            return [{
-                name: "Miranda Kiera",
-                months: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
-                total_views: [800,800,800,800,800,800,800,800,800,800,0,0],
-                total_followers: [200,200,200,200,200,200,200,200,200,200,0,0],
-                total_engagements: [60834,60834,60834,60834,60834,60834,60834,60834,60834,60834,0,0]
-            }];
+            return [
+                { name: "Miranda Kiera", months: ["Jan","Feb","Mar"], total_views: [800,800,800], total_followers: [200,200,200], total_engagements: [60834,60834,60834] },
+                { name: "Ava Sinclair", months: ["Jan","Feb","Mar"], total_views: [800,800,800], total_followers: [200,200,200], total_engagements: [60834,60834,60834] }
+            ];
         }
 
         function initDashboard() {
             renderKPIs();
             renderCharacterCards(currentCharacters);
             renderCharts();
-            populateFilter();
+            populateTableFilter();
             renderMonthlyTable();
             document.getElementById('last-updated').innerHTML = `✅ Live • Updated just now`;
         }
@@ -115,7 +127,7 @@
                 tf += Math.max(...c.total_followers);
                 te += c.total_engagements.reduce((a,b)=>a+b,0);
             });
-            const rate = tv > 0 ? ((te/tv)*100).toFixed(1) : 0;
+            const rate = tv > 0 ? ((te / tv) * 100).toFixed(1) : 0;
 
             document.getElementById('kpi-row').innerHTML = `
                 <div class="glass rounded-3xl p-7"><div class="text-slate-400 text-sm">TOTAL VIEWS</div><div class="text-5xl font-semibold mt-2">${tv.toLocaleString()}</div></div>
@@ -126,8 +138,9 @@
         }
 
         function renderCharacterCards(chars) {
-            const el = document.getElementById('character-grid');
-            el.innerHTML = '';
+            const container = document.getElementById('character-grid');
+            container.innerHTML = '';
+
             chars.forEach(char => {
                 const v = char.total_views.reduce((a,b)=>a+b,0);
                 const e = char.total_engagements.reduce((a,b)=>a+b,0);
@@ -137,71 +150,87 @@
                 const card = document.createElement('div');
                 card.className = `glass rounded-3xl p-7 hover:border-[#67e8f9] border border-transparent transition-all`;
                 card.innerHTML = `
-                    <div class="flex gap-4 mb-6">
-                        <div class="w-12 h-12 bg-gradient-to-br from-[#052659] to-[#67e8f9] rounded-2xl flex items-center justify-center text-white text-2xl font-bold">${char.name[0]}</div>
-                        <div class="font-semibold text-xl">${char.name}</div>
+                    <div class="flex items-center gap-4 mb-5">
+                        <div class="w-11 h-11 bg-gradient-to-br from-[#052659] to-[#67e8f9] rounded-2xl flex items-center justify-center text-white text-xl font-bold">${char.name[0]}</div>
+                        <div class="font-semibold">${char.name}</div>
                     </div>
-                    <div class="grid grid-cols-2 gap-y-3 text-sm">
-                        <div>Views<br><span class="font-semibold text-lg">${v.toLocaleString()}</span></div>
-                        <div>Followers<br><span class="font-semibold text-lg">${f}</span></div>
-                        <div>Engagements<br><span class="font-semibold text-lg">${e.toLocaleString()}</span></div>
-                        <div>Eng. Rate<br><span class="font-semibold text-lg">${rate}%</span></div>
+                    <div class="grid grid-cols-2 gap-y-2 text-sm">
+                        <div>Views <span class="font-semibold float-right">${v.toLocaleString()}</span></div>
+                        <div>Followers <span class="font-semibold float-right">${f}</span></div>
+                        <div>Engagements <span class="font-semibold float-right">${e.toLocaleString()}</span></div>
+                        <div>Eng. Rate <span class="font-semibold float-right text-emerald-400">${rate}%</span></div>
                     </div>
                 `;
-                el.appendChild(card);
+                container.appendChild(card);
             });
         }
 
-        function sortCharacters() {
+        function sortAndRenderCharacters() {
             const type = document.getElementById('char-sort').value;
             let sorted = [...currentCharacters];
 
-            if (type === 'engagement') sorted.sort((a,b) => b.total_engagements.reduce((x,y)=>x+y) - a.total_engagements.reduce((x,y)=>x+y));
-            if (type === 'views') sorted.sort((a,b) => b.total_views.reduce((x,y)=>x+y) - a.total_views.reduce((x,y)=>x+y));
+            if (type === 'engagement') sorted.sort((a,b) => b.total_engagements.reduce((x,y)=>x+y,0) - a.total_engagements.reduce((x,y)=>x+y,0));
+            if (type === 'views') sorted.sort((a,b) => b.total_views.reduce((x,y)=>x+y,0) - a.total_views.reduce((x,y)=>x+y,0));
             if (type === 'followers') sorted.sort((a,b) => Math.max(...b.total_followers) - Math.max(...a.total_followers));
-            if (type === 'rate') sorted.sort((a,b) => (b.total_engagements.reduce((x,y)=>x+y)/b.total_views.reduce((x,y)=>x+y)) - (a.total_engagements.reduce((x,y)=>x+y)/a.total_views.reduce((x,y)=>x+y)));
+            if (type === 'rate') sorted.sort((a,b) => {
+                const ra = a.total_views.reduce((x,y)=>x+y,0) > 0 ? a.total_engagements.reduce((x,y)=>x+y,0) / a.total_views.reduce((x,y)=>x+y,0) : 0;
+                const rb = b.total_views.reduce((x,y)=>x+y,0) > 0 ? b.total_engagements.reduce((x,y)=>x+y,0) / b.total_views.reduce((x,y)=>x+y,0) : 0;
+                return rb - ra;
+            });
 
             renderCharacterCards(sorted);
         }
 
         function renderCharts() {
-            if (viewsChart) viewsChart.destroy();
-            if (charViewsChart) charViewsChart.destroy();
+            if (viewsChartInstance) viewsChartInstance.destroy();
+            if (charPerformanceInstance) charPerformanceInstance.destroy();
 
-            viewsChart = new Chart(document.getElementById('viewsChart'), {
+            // Monthly Views Trend
+            viewsChartInstance = new Chart(document.getElementById('viewsChart'), {
                 type: 'line',
                 data: {
                     labels: currentCharacters[0]?.months || [],
-                    datasets: currentCharacters.map((c,i) => ({
-                        label: c.name, data: c.total_views,
-                        borderColor: ['#67e8f9','#a855f7','#14b8a6'][i%3], tension: 0.4, borderWidth: 3.5
+                    datasets: currentCharacters.map((c, i) => ({
+                        label: c.name,
+                        data: c.total_views,
+                        borderColor: ['#67e8f9', '#a855f7', '#14b8a6', '#f59e0b', '#ec4899'][i % 5],
+                        tension: 0.4,
+                        borderWidth: 3
                     }))
-                }
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
             });
 
-            const charData = currentCharacters.map(c => ({name: c.name, views: c.total_views.reduce((a,b)=>a+b,0)}));
-            charViewsChart = new Chart(document.getElementById('characterViewsChart'), {
+            // Character Performance Bar
+            const sortedChars = [...currentCharacters].sort((a,b) => b.total_views.reduce((x,y)=>x+y,0) - a.total_views.reduce((x,y)=>x+y,0));
+            charPerformanceInstance = new Chart(document.getElementById('charPerformanceChart'), {
                 type: 'bar',
                 data: {
-                    labels: charData.map(c => c.name),
-                    datasets: [{ label: 'Total Views', data: charData.map(c => c.views), backgroundColor: '#67e8f9', borderRadius: 6 }]
-                }
+                    labels: sortedChars.map(c => c.name),
+                    datasets: [{
+                        label: 'Total Views',
+                        data: sortedChars.map(c => c.total_views.reduce((a,b)=>a+b,0)),
+                        backgroundColor: '#67e8f9',
+                        borderRadius: 6
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
-        function populateFilter() {
-            const sel = document.getElementById('character-filter');
+        function populateTableFilter() {
+            const sel = document.getElementById('table-character-filter');
             sel.innerHTML = '<option value="all">All Characters</option>';
             currentCharacters.forEach(c => {
-                const o = document.createElement('option');
-                o.value = c.name; o.textContent = c.name;
-                sel.appendChild(o);
+                const opt = document.createElement('option');
+                opt.value = c.name; opt.textContent = c.name;
+                sel.appendChild(opt);
             });
         }
 
         function renderMonthlyTable() {
             const container = document.getElementById('monthly-table');
-            const filter = document.getElementById('character-filter').value;
+            const filter = document.getElementById('table-character-filter').value;
 
             let html = `<table class="w-full text-sm"><thead><tr class="border-b border-slate-700 text-slate-400">
                 <th class="text-left py-4">Character</th><th class="text-left py-4">Month</th>
@@ -210,14 +239,20 @@
 
             currentCharacters.forEach(char => {
                 if (filter !== 'all' && filter !== char.name) return;
-                char.months.forEach((m, i) => {
+
+                char.months.forEach((month, i) => {
                     const v = char.total_views[i] || 0;
                     const f = char.total_followers[i] || 0;
                     const e = char.total_engagements[i] || 0;
-                    const rate = v > 0 ? ((e/v)*100).toFixed(1) : 0;
-                    html += `<tr class="border-b border-slate-800"><td class="py-4">${char.name}</td><td>${m}</td>
-                        <td class="text-right">${v}</td><td class="text-right">${f}</td><td class="text-right">${e}</td>
-                        <td class="text-right text-emerald-400">${rate}%</td></tr>`;
+                    const rate = v > 0 ? ((e / v) * 100).toFixed(1) : '0';
+                    html += `<tr class="border-b border-slate-800">
+                        <td class="py-4 font-medium">${char.name}</td>
+                        <td class="py-4">${month}</td>
+                        <td class="text-right">${v.toLocaleString()}</td>
+                        <td class="text-right">${f}</td>
+                        <td class="text-right">${e.toLocaleString()}</td>
+                        <td class="text-right text-emerald-400">${rate}%</td>
+                    </tr>`;
                 });
             });
             html += `</tbody></table>`;
