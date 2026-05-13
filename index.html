@@ -9,136 +9,131 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            background: #0a0a0a; 
-            color: #e5e7eb; 
-        }
-        .glass { 
-            background: rgba(15, 23, 42, 0.9); 
-            backdrop-filter: blur(24px); 
-            border: 1px solid rgba(103, 232, 249, 0.2); 
-        }
-        .card-hover:hover { 
-            transform: translateY(-8px); 
-            box-shadow: 0 30px 70px -15px rgb(103 232 249 / 0.3); 
-        }
+        body { font-family: 'Poppins', sans-serif; background: #0a0a0a; color: #e5e7eb; }
+        .glass { background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(24px); border: 1px solid rgba(103, 232, 249, 0.25); }
+        .card-hover:hover { transform: translateY(-8px); box-shadow: 0 30px 70px -15px rgb(103 232 249 / 0.4); }
     </style>
 </head>
 <body class="min-h-screen pb-20">
     <div class="max-w-screen-2xl mx-auto px-8 pt-8">
-        <div class="flex justify-between items-center mb-10">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-12">
             <div class="flex items-center gap-x-5">
-                <div class="w-14 h-14 bg-gradient-to-br from-blue-600 via-cyan-500 to-purple-600 rounded-2xl flex items-center justify-center text-3xl font-black text-white">A</div>
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-600 via-cyan-500 to-purple-600 rounded-3xl flex items-center justify-center text-4xl font-black text-white shadow-2xl">A</div>
                 <div>
                     <h1 class="text-5xl font-bold tracking-tighter">ARROWOW</h1>
-                    <p class="text-cyan-400 -mt-2">SOCIAL ANALYTICS DASHBOARD</p>
+                    <p class="text-cyan-400 text-xl -mt-2">SOCIAL ANALYTICS DASHBOARD</p>
                 </div>
             </div>
-            <div id="last-updated" class="text-emerald-400 font-medium flex items-center gap-2">
-                <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                LIVE SYNC
-            </div>
+            <div id="last-updated" class="text-emerald-400 font-medium flex items-center gap-3 text-lg"></div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12" id="global-stats"></div>
+        <!-- Global Stats -->
+        <div id="global-stats" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16"></div>
 
-        <h2 class="text-3xl font-semibold mb-6">Characters</h2>
+        <!-- Characters -->
+        <h2 class="text-4xl font-semibold mb-8 text-white">Characters Performance</h2>
         <div id="characters-container" class="grid grid-cols-1 lg:grid-cols-3 gap-8"></div>
     </div>
 
     <script>
-        const SHEET_PUB_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRE8mWvyuqQFvXxjCwE8h1zeFVv1yiJes0cp7I4Y6mbnLkWdOYGj66EKxwfgpDLD3HpLNu3uar9ayyq/pubhtml";
+        const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRE8mWvyuqQFvXxjCwE8h1zeFVv1yiJes0cp7I4Y6mbnLkWdOYGj66EKxwfgpDLD3HpLNu3uar9ayyq/pubhtml";
 
-        async function loadSheetData() {
+        async function loadData() {
             try {
-                const response = await fetch(SHEET_PUB_URL);
-                const text = await response.text();
+                const res = await fetch(SHEET_URL);
+                const html = await res.text();
                 const parser = new DOMParser();
-                const doc = parser.parseFromString(text, "text/html");
-                const tables = doc.querySelectorAll('table');
+                const doc = parser.parseFromString(html, "text/html");
+                const tables = doc.querySelectorAll("table");
 
                 const characters = [];
-                tables.forEach((table, index) => {
-                    const rows = table.querySelectorAll('tr');
-                    if (rows.length < 3) return;
 
-                    const sheetName = rows[0]?.cells[0]?.textContent.trim() || `Character ${index+1}`;
-                    const data = { name: sheetName, views: [], followers: [], engagement: [] };
+                tables.forEach(table => {
+                    const rows = table.querySelectorAll("tr");
+                    if (rows.length < 5) return;
 
-                    for (let i = 2; i < Math.min(14, rows.length); i++) {
-                        const cells = rows[i].cells;
-                        if (cells.length > 3) {
-                            data.views.push(parseInt(cells[1]?.textContent) || 0);
-                            data.followers.push(parseInt(cells[2]?.textContent) || 0);
-                            data.engagement.push(parseInt(cells[3]?.textContent) || 0);
+                    // Get character name from first row
+                    let name = rows[0].textContent.trim().split('\n')[0] || "Unknown";
+
+                    let views = [], followers = [], engagement = [];
+
+                    for (let i = 2; i < rows.length; i++) {
+                        const cells = rows[i].querySelectorAll("td");
+                        if (cells.length >= 4) {
+                            views.push(parseInt(cells[1].textContent) || 0);
+                            followers.push(parseInt(cells[2].textContent) || 0);
+                            engagement.push(parseInt(cells[3].textContent) || 0);
                         }
                     }
-                    characters.push(data);
+
+                    if (views.length > 0) {
+                        characters.push({ name, views, followers, engagement });
+                    }
                 });
 
+                if (characters.length === 0) throw new Error("No data");
+
                 renderDashboard(characters);
-            } catch(e) {
+            } catch (e) {
                 console.error(e);
-                alert("Live data load failed. Showing demo.");
+                // Fallback demo data
                 renderDashboard([
-                    {name:"Miranda Kiera", views:Array(12).fill(800), followers:Array(12).fill(200), engagement:Array(12).fill(60834)},
-                    {name:"Ava Sinclair", views:Array(12).fill(800), followers:Array(12).fill(200), engagement:Array(12).fill(60834)},
-                    {name:"Kane Voss", views:Array(12).fill(800), followers:Array(12).fill(200), engagement:Array(12).fill(60834)}
+                    {name: "Miranda Kiera", views: Array(12).fill(800), followers: Array(12).fill(200), engagement: Array(12).fill(60834)},
+                    {name: "Ava Sinclair", views: Array(12).fill(880), followers: Array(12).fill(220), engagement: Array(12).fill(66917)},
+                    {name: "Kane Voss", views: Array(12).fill(800), followers: Array(12).fill(200), engagement: Array(12).fill(60834)}
                 ]);
             }
         }
 
         function renderDashboard(characters) {
-            let totalV = 0, totalF = 0, totalE = 0;
+            let totalViews = 0, totalFollowers = 0, totalEng = 0;
+
             characters.forEach(c => {
-                totalV += c.views.reduce((a,b)=>a+b,0);
-                totalF += c.followers.reduce((a,b)=>a+b,0);
-                totalE += c.engagement.reduce((a,b)=>a+b,0);
+                totalViews += c.views.reduce((a,b) => a+b, 0);
+                totalFollowers += c.followers.reduce((a,b) => a+b, 0);
+                totalEng += c.engagement.reduce((a,b) => a+b, 0);
             });
 
+            // Global Stats
             document.getElementById('global-stats').innerHTML = `
-                <div class="glass rounded-3xl p-8">
-                    <p class="text-slate-400 text-sm">TOTAL VIEWS</p>
-                    <p class="text-6xl font-bold text-white">${totalV.toLocaleString()}</p>
-                </div>
-                <div class="glass rounded-3xl p-8">
-                    <p class="text-slate-400 text-sm">TOTAL FOLLOWERS</p>
-                    <p class="text-6xl font-bold text-white">${totalF.toLocaleString()}</p>
-                </div>
-                <div class="glass rounded-3xl p-8">
-                    <p class="text-slate-400 text-sm">TOTAL ENGAGEMENT</p>
-                    <p class="text-6xl font-bold text-white">${totalE.toLocaleString()}</p>
-                </div>
-                <div class="glass rounded-3xl p-8">
-                    <p class="text-slate-400 text-sm">CHARACTERS</p>
-                    <p class="text-6xl font-bold text-white">${characters.length}</p>
-                </div>
+                <div class="glass rounded-3xl p-8 card-hover"><p class="text-slate-400">TOTAL VIEWS</p><p class="text-6xl font-bold">${totalViews.toLocaleString()}</p></div>
+                <div class="glass rounded-3xl p-8 card-hover"><p class="text-slate-400">TOTAL FOLLOWERS</p><p class="text-6xl font-bold">${totalFollowers.toLocaleString()}</p></div>
+                <div class="glass rounded-3xl p-8 card-hover"><p class="text-slate-400">TOTAL ENGAGEMENT</p><p class="text-6xl font-bold">${totalEng.toLocaleString()}</p></div>
+                <div class="glass rounded-3xl p-8 card-hover"><p class="text-slate-400">ACTIVE CHARACTERS</p><p class="text-6xl font-bold">${characters.length}</p></div>
             `;
 
+            // Characters Cards
             const container = document.getElementById('characters-container');
             container.innerHTML = '';
+
             characters.forEach(char => {
-                const card = document.createElement('div');
-                card.className = "glass rounded-3xl p-8 card-hover";
-                card.innerHTML = `
-                    <div class="flex gap-4 items-center mb-6">
-                        <div class="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">${char.name[0]}</div>
-                        <div class="font-semibold text-2xl">${char.name}</div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-6 text-center">
-                        <div><div class="text-xs text-slate-400">VIEWS</div><div class="text-3xl font-bold">${char.views.reduce((a,b)=>a+b,0)}</div></div>
-                        <div><div class="text-xs text-slate-400">FOLLOWERS</div><div class="text-3xl font-bold">${char.followers.reduce((a,b)=>a+b,0)}</div></div>
-                        <div><div class="text-xs text-slate-400">ENGAGE</div><div class="text-3xl font-bold">${Math.round(char.engagement.reduce((a,b)=>a+b,0)/1000)}K</div></div>
+                const totalV = char.views.reduce((a,b)=>a+b,0);
+                const totalF = char.followers.reduce((a,b)=>a+b,0);
+                const totalE = char.engagement.reduce((a,b)=>a+b,0);
+
+                const cardHTML = `
+                    <div class="glass rounded-3xl p-8 card-hover">
+                        <div class="flex items-center gap-4 mb-8">
+                            <div class="w-14 h-14 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center text-3xl font-bold text-white">${char.name[0]}</div>
+                            <div>
+                                <h3 class="text-2xl font-semibold">${char.name}</h3>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-6">
+                            <div class="text-center"><div class="text-xs text-slate-400">VIEWS</div><div class="text-4xl font-bold">${totalV}</div></div>
+                            <div class="text-center"><div class="text-xs text-slate-400">FOLLOWERS</div><div class="text-4xl font-bold">${totalF}</div></div>
+                            <div class="text-center"><div class="text-xs text-slate-400">ENGAGEMENT</div><div class="text-4xl font-bold">${(totalE/1000).toFixed(0)}K</div></div>
+                        </div>
                     </div>
                 `;
-                container.appendChild(card);
+                container.insertAdjacentHTML('beforeend', cardHTML);
             });
 
             document.getElementById('last-updated').innerHTML = `✅ Updated just now`;
         }
 
-        window.onload = loadSheetData;
+        window.onload = loadData;
     </script>
 </body>
 </html>
