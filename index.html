@@ -18,6 +18,7 @@
 </head>
 <body class="min-h-screen pb-20">
     <div class="max-w-screen-2xl mx-auto px-8 pt-8">
+        
         <!-- Header -->
         <div class="flex justify-between items-center mb-8">
             <div class="flex items-center gap-x-4">
@@ -142,6 +143,7 @@
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbxNaTC0k_QtwrXvlCR9JVp2kvv5F7Wof1e55Q43te-13tJysxuWvFkg5AlkxNg9_xMg/exec";
+        
         let currentCharacters = [];
         let viewsChart = null;
         let performanceChart = null;
@@ -150,30 +152,210 @@
         let modalPlatformTrendChart = null;
         let modalPlatformShareChart = null;
 
-        const avatarMap = { /* your avatar mapping */ };
-        const characterColors = { /* your color mapping */ };
+        const avatarMap = {
+            "Miranda Kiera": "miranda.png",
+            "Ava Sinclair": "ava.png",
+            "Kane Voss": "kane.png",
+            "Chloe Mitchell": "chloe.png",
+            "Melina Mayer": "melina.png",
+            "Aussie Spirit": "Aussie.png"
+        };
+
+        const characterColors = {
+            "Miranda Kiera": "#67E8F9",
+            "Ava Sinclair": "#9EEBFF",
+            "Kane Voss": "#7DADCA",
+            "Aussie Spirit": "#14b8a6",
+            "Melina Mayer": "#f59e0b",
+            "Chloe Mitchell": "#ec4899",
+            "Jeff Brown": "#a855f7"
+        };
 
         function getCharacterColor(name) {
             return characterColors[name] || "#67E8F9";
         }
 
-        async function loadData() { /* same as before */ }
+        async function loadData() {
+            const status = document.getElementById('last-updated');
+            try {
+                status.innerHTML = `⏳ Loading live data...`;
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                currentCharacters = Object.values(data || {});
+            } catch (e) {
+                console.error(e);
+                status.innerHTML = `⚠️ Using demo data`;
+                currentCharacters = getDemoData();
+            }
+            initDashboard();
+        }
 
-        function calculateMoMGrowth(char) { /* same as before */ }
+        function getDemoData() {
+            return [
+                { name: "Miranda Kiera", months: ["Jan","Feb","Mar","Apr"], total_views: [1000,1000,1000,1000], total_followers: [200,200,200,200], total_engagements: [60834,60834,60834,60834] },
+                { name: "Ava Sinclair", months: ["Jan","Feb","Mar","Apr"], total_views: [800,800,800,800], total_followers: [200,200,200,200], total_engagements: [60834,60834,60834,60834] }
+            ];
+        }
 
-        function renderKPIs() { /* same as before */ }
+        function initDashboard() {
+            renderKPIs();
+            renderCharacterCards(currentCharacters);
+            renderCharts();
+            renderGrowthChart();
+            populateTableFilter();
+            renderMonthlyTable();
+            document.getElementById('last-updated').innerHTML = `✅ Live • Updated just now`;
+        }
 
-        function renderCharacterCards(chars) { /* same as before */ }
+        function calculateMoMGrowth(char) {
+            const views = char.total_views || [];
+            const engagements = char.total_engagements || [];
+            let lastIndex = -1;
+            for (let i = views.length - 1; i >= 0; i--) {
+                if (views[i] > 0) { lastIndex = i; break; }
+            }
+            if (lastIndex <= 0) return 0;
+            const prev = engagements[lastIndex - 1] || 0;
+            const curr = engagements[lastIndex] || 0;
+            if (prev === 0) return 0;
+            return ((curr - prev) / prev) * 100;
+        }
 
-        function sortAndRenderCharacters() { /* same as before */ }
+        function renderKPIs() {
+            let tv = 0, tf = 0, te = 0, totalGrowth = 0, count = 0;
+            currentCharacters.forEach(c => {
+                tv += (c.total_views || []).reduce((a,b)=>a+b,0);
+                tf += Math.max(...(c.total_followers || [0]));
+                te += (c.total_engagements || []).reduce((a,b)=>a+b,0);
+                const g = calculateMoMGrowth(c);
+                if (!isNaN(g)) { totalGrowth += g; count++; }
+            });
+            const avgGrowth = count > 0 ? (totalGrowth / count).toFixed(1) : 0;
 
-        function renderCharts() { /* same as before */ }
+            document.getElementById('kpi-row').innerHTML = `
+                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL VIEWS</div><div class="text-4xl font-semibold">${tv.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL FOLLOWERS</div><div class="text-4xl font-semibold">${tf.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL ENGAGEMENT</div><div class="text-4xl font-semibold">${te.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">AVG MoM GROWTH</div><div class="text-4xl font-semibold text-[#67E8F9]">${avgGrowth}<span class="text-2xl">%</span></div></div>
+            `;
+        }
 
-        function renderGrowthChart() { /* same as before */ }
+        function renderCharacterCards(chars) {
+            const container = document.getElementById('character-grid');
+            container.innerHTML = '';
+            chars.forEach(char => {
+                const v = (char.total_views || []).reduce((a,b)=>a+b,0);
+                const e = (char.total_engagements || []).reduce((a,b)=>a+b,0);
+                const f = Math.max(...(char.total_followers || [0]));
+                const growth = calculateMoMGrowth(char);
+                const avatar = avatarMap[char.name] || "logo.png";
 
-        function renderMonthlyTable() { /* same as before */ }
+                const card = document.createElement('div');
+                card.className = `glass rounded-3xl p-6 character-card border border-[#2A2F3A] cursor-pointer`;
+                card.innerHTML = `
+                    <div class="flex items-center gap-4 mb-6">
+                        <img src="${avatar}" class="w-12 h-12 rounded-2xl object-cover border border-[#2A2F3A] flex-shrink-0">
+                        <div class="font-semibold text-[17px]">${char.name}</div>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Views</span> <span class="font-semibold">${v.toLocaleString()}</span></div>
+                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Followers</span> <span class="font-semibold">${f}</span></div>
+                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Engagements</span> <span class="font-semibold">${e.toLocaleString()}</span></div>
+                        <div class="flex justify-between pt-1 border-t border-[#2A2F3A]">
+                            <span class="text-[#9CA3AF]">MoM Growth</span>
+                            <span class="font-semibold ${growth >= 0 ? 'text-[#67E8F9]' : 'text-red-400'}">${growth.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => openCharacterModal(char);
+                container.appendChild(card);
+            });
+        }
 
-        // ==================== MODAL (FIXED) ====================
+        function sortAndRenderCharacters() {
+            const type = document.getElementById('char-sort').value;
+            let sorted = [...currentCharacters];
+            if (type === 'engagement') sorted.sort((a,b) => (b.total_engagements||[]).reduce((x,y)=>x+y,0) - (a.total_engagements||[]).reduce((x,y)=>x+y,0));
+            if (type === 'views') sorted.sort((a,b) => (b.total_views||[]).reduce((x,y)=>x+y,0) - (a.total_views||[]).reduce((x,y)=>x+y,0));
+            if (type === 'followers') sorted.sort((a,b) => Math.max(...(b.total_followers||[0])) - Math.max(...(a.total_followers||[0])));
+            if (type === 'growth') sorted.sort((a,b) => calculateMoMGrowth(b) - calculateMoMGrowth(a));
+            renderCharacterCards(sorted);
+        }
+
+        function renderCharts() {
+            if (viewsChart) viewsChart.destroy();
+            if (performanceChart) performanceChart.destroy();
+
+            viewsChart = new ApexCharts(document.querySelector("#viewsChart"), {
+                chart: { type: 'line', height: 340, toolbar: { show: true } },
+                series: currentCharacters.map(c => ({ name: c.name, data: c.total_views || [] })),
+                xaxis: { categories: currentCharacters[0]?.months || [] },
+                stroke: { curve: 'smooth', width: 3.5 },
+                colors: currentCharacters.map(c => getCharacterColor(c.name)),
+                tooltip: { theme: 'dark' },
+                legend: { position: 'top' }
+            });
+            viewsChart.render();
+
+            const sorted = [...currentCharacters].sort((a,b) => (b.total_views||[]).reduce((x,y)=>x+y,0) - (a.total_views||[]).reduce((x,y)=>x+y,0));
+            performanceChart = new ApexCharts(document.querySelector("#charPerformanceChart"), {
+                chart: { type: 'bar', height: 340 },
+                series: [{ name: 'Total Views', data: sorted.map(c => (c.total_views||[]).reduce((a,b)=>a+b,0)) }],
+                xaxis: { categories: sorted.map(c => c.name) },
+                colors: sorted.map(c => getCharacterColor(c.name)),
+                plotOptions: { bar: { borderRadius: 8 } }
+            });
+            performanceChart.render();
+        }
+
+        function renderGrowthChart() {
+            if (growthChart) growthChart.destroy();
+            const sortType = document.getElementById('growth-sort').value;
+            let data = currentCharacters.map(c => ({ name: c.name, growth: calculateMoMGrowth(c) }));
+            if (sortType === 'growth') data.sort((a,b) => b.growth - a.growth);
+            else data.sort((a,b) => a.name.localeCompare(b.name));
+
+            growthChart = new ApexCharts(document.querySelector("#growthChart"), {
+                chart: { type: 'bar', height: 320 },
+                series: [{ name: 'MoM Growth %', data: data.map(d => d.growth) }],
+                xaxis: { categories: data.map(d => d.name) },
+                colors: data.map(d => getCharacterColor(d.name)),
+                plotOptions: { bar: { borderRadius: 6 } }
+            });
+            growthChart.render();
+        }
+
+        function populateTableFilter() {
+            const sel = document.getElementById('table-character-filter');
+            sel.innerHTML = '<option value="all">All Characters</option>';
+            currentCharacters.forEach(c => {
+                const o = document.createElement('option'); o.value = c.name; o.textContent = c.name;
+                sel.appendChild(o);
+            });
+        }
+
+        function renderMonthlyTable() {
+            const container = document.getElementById('monthly-table');
+            const filter = document.getElementById('table-character-filter').value;
+            let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
+                <th class="text-left py-4">Character</th><th class="text-left py-4">Month</th>
+                <th class="text-right py-4">Views</th><th class="text-right py-4">Followers</th>
+                <th class="text-right py-4">Engagements</th><th class="text-right py-4">Rate</th></tr></thead><tbody>`;
+
+            currentCharacters.forEach(char => {
+                if (filter !== 'all' && filter !== char.name) return;
+                (char.months || []).forEach((m, i) => {
+                    const v = (char.total_views||[])[i]||0, f = (char.total_followers||[])[i]||0, e = (char.total_engagements||[])[i]||0;
+                    const rate = v > 0 ? ((e/v)*100).toFixed(1) : '0';
+                    html += `<tr class="border-b border-[#2A2F3A]"><td class="py-4 font-medium">${char.name}</td><td>${m}</td>
+                        <td class="text-right">${v}</td><td class="text-right">${f}</td><td class="text-right">${e}</td>
+                        <td class="text-right text-[#67E8F9]">${rate}%</td></tr>`;
+                });
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
         function openCharacterModal(char) {
             currentModalCharacter = char;
             document.getElementById('character-modal').classList.remove('hidden');
@@ -203,13 +385,47 @@
             }
         }
 
+        function renderModalOverview(char) {
+            const totalV = (char.total_views || []).reduce((a,b)=>a+b,0);
+            const totalE = (char.total_engagements || []).reduce((a,b)=>a+b,0);
+            const latestF = Math.max(...(char.total_followers || [0]));
+            const growth = calculateMoMGrowth(char);
+
+            document.getElementById('modal-summary').innerHTML = `
+                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Views</div><div class="text-3xl font-semibold">${totalV.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Followers</div><div class="text-3xl font-semibold">${latestF}</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Engagements</div><div class="text-3xl font-semibold">${totalE.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">MoM Growth</div><div class="text-3xl font-semibold text-[#67E8F9]">${growth.toFixed(1)}%</div></div>
+            `;
+            renderModalMonthlyTable(char);
+        }
+
+        function renderModalMonthlyTable(char) {
+            const container = document.getElementById('modal-monthly-table');
+            let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
+                <th class="text-left py-3">Month</th><th class="text-right py-3">Views</th>
+                <th class="text-right py-3">Followers</th><th class="text-right py-3">Engagements</th><th class="text-right py-3">Rate</th></tr></thead><tbody>`;
+
+            (char.months || []).forEach((m, i) => {
+                const v = (char.total_views||[])[i]||0, f = (char.total_followers||[])[i]||0, e = (char.total_engagements||[])[i]||0;
+                const rate = v > 0 ? ((e/v)*100).toFixed(1) : '0';
+                html += `<tr class="border-b border-[#2A2F3A]"><td class="py-3">${m}</td>
+                    <td class="text-right">${v}</td><td class="text-right">${f}</td>
+                    <td class="text-right">${e}</td><td class="text-right text-[#67E8F9]">${rate}%</td></tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function sortModalMonthlyTable() {
+            // Optional: implement sorting if needed
+        }
+
         function renderPlatformBreakdown(char) {
             if (!char) return;
-
             const platforms = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
             const p = char.platforms || {};
 
-            // Destroy old charts
             if (modalPlatformTrendChart) modalPlatformTrendChart.destroy();
             if (modalPlatformShareChart) modalPlatformShareChart.destroy();
 
@@ -230,11 +446,9 @@
             });
             modalPlatformShareChart.render();
 
-            // Table
             let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
                 <th class="text-left py-3">Month</th><th class="text-right">Instagram</th>
                 <th class="text-right">TikTok</th><th class="text-right">YouTube</th><th class="text-right">Facebook</th></tr></thead><tbody>`;
-
             (char.months || []).forEach((m, i) => {
                 html += `<tr class="border-b border-[#2A2F3A]"><td class="py-3">${m}</td>
                     <td class="text-right">${p.Instagram?.views?.[i] || 0}</td>
