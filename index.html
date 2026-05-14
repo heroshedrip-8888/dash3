@@ -9,11 +9,25 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', system_ui, sans-serif; background: #021024; color: #F8FAFC; }
-        .glass { background: rgba(15, 23, 42, 0.85); border: 1px solid #2A2F3A; backdrop-filter: blur(20px); }
-        .section-header { font-size: 1rem; font-weight: 600; color: #C1EBFF; }
+        body { 
+            font-family: 'Inter', system_ui, sans-serif; 
+            background: #021024; 
+            color: #F8FAFC; 
+        }
+        .glass { 
+            background: rgba(15, 23, 42, 0.85); 
+            border: 1px solid #2A2F3A; 
+            backdrop-filter: blur(20px);
+        }
+        .section-header { 
+            font-size: 1rem; 
+            font-weight: 600; 
+            color: #C1EBFF; 
+            letter-spacing: -.015em;
+        }
         .character-card { transition: all 0.2s ease; }
         .character-card:hover { transform: translateY(-6px); border-color: #67E8F9; }
+        .modal-tab.active { border-bottom: 3px solid #67E8F9; color: #F8FAFC; }
     </style>
 </head>
 <body class="min-h-screen pb-20">
@@ -41,26 +55,14 @@
         <div class="mb-10">
             <div class="flex justify-between items-center mb-4">
                 <div class="section-header">CHARACTERS</div>
-                <select id="char-sort" onchange="sortAndRenderCharacters()" class="bg-slate-900 border border-[#2A2F3A] rounded-2xl px-4 py-2 text-sm">
+                <select id="char-sort" onchange="sortAndRenderCharacters()" class="bg-slate-900 border border-[#2A2F3A] rounded-2xl px-4 py-2 text-sm text-[#F8FAFC]">
                     <option value="engagement">Sort by Engagements</option>
                     <option value="views">Sort by Views</option>
                     <option value="followers">Sort by Followers</option>
-                    <option value="growth">Sort by MoM Growth</option>
+                    <option value="rate">Sort by Eng. Rate</option>
                 </select>
             </div>
             <div id="character-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6"></div>
-        </div>
-
-        <!-- Growth Chart -->
-        <div class="glass rounded-2xl p-6 mb-10">
-            <div class="flex justify-between items-center mb-4">
-                <div class="section-header">MONTHLY GROWTH BY CHARACTER</div>
-                <select id="growth-sort" onchange="renderGrowthChart()" class="bg-slate-900 border border-[#2A2F3A] rounded-xl px-4 py-2 text-sm">
-                    <option value="growth">Sort by Growth %</option>
-                    <option value="name">Sort by Name</option>
-                </select>
-            </div>
-            <div id="growthChart"></div>
         </div>
 
         <!-- Charts -->
@@ -87,12 +89,67 @@
         </div>
     </div>
 
+    <!-- Character Modal -->
+    <div id="character-modal" onclick="if (event.target.id === 'character-modal') closeModal()" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div onclick="event.stopImmediatePropagation()" class="glass rounded-2xl w-full max-w-5xl mx-4 max-h-[92vh] overflow-hidden">
+            <div class="flex justify-between items-center px-8 py-5 border-b border-[#2A2F3A]">
+                <div class="flex items-center gap-4">
+                    <img id="modal-avatar" class="w-12 h-12 rounded-2xl object-cover border border-[#2A2F3A]">
+                    <div id="modal-character-name" class="text-2xl font-semibold text-[#F8FAFC]"></div>
+                </div>
+                <button onclick="closeModal()" class="text-3xl text-[#9CA3AF] hover:text-white">&times;</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-[#2A2F3A] px-8">
+                <button onclick="switchModalTab(0)" class="modal-tab active px-6 py-3 font-medium text-sm text-[#F8FAFC]" id="tab-0">Overview</button>
+                <button onclick="switchModalTab(1)" class="modal-tab px-6 py-3 font-medium text-sm text-[#9CA3AF]" id="tab-1">Platform Breakdown</button>
+            </div>
+
+            <div class="p-8 overflow-y-auto max-h-[70vh]">
+                <!-- Overview Tab -->
+                <div id="modal-tab-0">
+                    <div id="modal-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"></div>
+
+                    <div class="mb-2 flex justify-between items-center">
+                        <div class="font-semibold text-[#C1EBFF]">Monthly Performance</div>
+                        <select id="modal-month-sort" onchange="sortModalMonthlyTable()" class="bg-slate-900 border border-[#2A2F3A] rounded-xl px-3 py-1.5 text-sm">
+                            <option value="month">Sort by Month</option>
+                            <option value="views">Sort by Views</option>
+                            <option value="followers">Sort by Followers</option>
+                            <option value="engagements">Sort by Engagements</option>
+                            <option value="rate">Sort by Eng. Rate</option>
+                        </select>
+                    </div>
+                    <div id="modal-monthly-table" class="overflow-x-auto"></div>
+                </div>
+
+                <!-- Platform Breakdown Tab -->
+                <div id="modal-tab-1" class="hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <div class="lg:col-span-7">
+                            <div class="font-semibold mb-3 text-[#C1EBFF]">Platform Performance by Month</div>
+                            <div id="modal-platform-trend-chart"></div>
+                        </div>
+                        <div class="lg:col-span-5">
+                            <div class="font-semibold mb-3 text-[#C1EBFF]">Platform Share</div>
+                            <div id="modal-platform-share-chart"></div>
+                        </div>
+                    </div>
+                    <div class="mt-8">
+                        <div class="font-semibold mb-3 text-[#C1EBFF]">Monthly Platform Data</div>
+                        <div id="modal-platform-table" class="overflow-x-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycby0OKihbLgl9yRGk7qxfjPZgEChxh1jwfEPHeET_mARjFQfV3rWtB9nnxV-9BlI-OYB/exec";
         let currentCharacters = [];
         let viewsChart = null;
         let performanceChart = null;
-        let growthChart = null;
         let currentModalCharacter = null;
 
         const avatarMap = {
@@ -117,7 +174,7 @@
 
         function getDemoData() {
             return [
-                { name: "Miranda Kiera", months: ["Jan","Feb","Mar","Apr"], total_views: [800,900,1000,1100], total_followers: [200,210,220,230], total_engagements: [50000,55000,60000,65000] }
+                { name: "Miranda Kiera", months: ["Jan","Feb","Mar","Apr"], total_views: [1000,1000,1000,1000], total_followers: [200,200,200,200], total_engagements: [60834,60834,60834,60834] }
             ];
         }
 
@@ -125,60 +182,25 @@
             renderKPIs();
             renderCharacterCards(currentCharacters);
             renderCharts();
-            renderGrowthChart();
             populateTableFilter();
             renderMonthlyTable();
             document.getElementById('last-updated').innerHTML = `✅ Live • Updated just now`;
         }
 
-        // Calculate MoM Growth for last active month
-        function calculateMoMGrowth(char) {
-            const views = char.total_views;
-            const engagements = char.total_engagements;
-
-            // Find last active month (non-zero)
-            let lastIndex = -1;
-            for (let i = views.length - 1; i >= 0; i--) {
-                if (views[i] > 0) {
-                    lastIndex = i;
-                    break;
-                }
-            }
-
-            if (lastIndex <= 0) return 0; // Not enough data
-
-            const prevEng = engagements[lastIndex - 1] || 0;
-            const currEng = engagements[lastIndex] || 0;
-
-            if (prevEng === 0) return 0;
-
-            return ((currEng - prevEng) / prevEng) * 100;
-        }
-
         function renderKPIs() {
             let tv = 0, tf = 0, te = 0;
-            let totalGrowth = 0;
-            let count = 0;
-
             currentCharacters.forEach(c => {
                 tv += c.total_views.reduce((a,b)=>a+b,0);
                 tf += Math.max(...c.total_followers);
                 te += c.total_engagements.reduce((a,b)=>a+b,0);
-                
-                const growth = calculateMoMGrowth(c);
-                if (!isNaN(growth)) {
-                    totalGrowth += growth;
-                    count++;
-                }
             });
-
-            const avgGrowth = count > 0 ? (totalGrowth / count).toFixed(1) : 0;
+            const rate = tv > 0 ? ((te / tv) * 100).toFixed(1) : 0;
 
             document.getElementById('kpi-row').innerHTML = `
-                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL VIEWS</div><div class="text-4xl font-semibold">${tv.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL FOLLOWERS</div><div class="text-4xl font-semibold">${tf.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL ENGAGEMENT</div><div class="text-4xl font-semibold">${te.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">AVG MoM GROWTH</div><div class="text-4xl font-semibold text-[#67E8F9]">${avgGrowth}<span class="text-2xl">%</span></div></div>
+                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL VIEWS</div><div class="text-4xl font-semibold text-[#F8FAFC]">${tv.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL FOLLOWERS</div><div class="text-4xl font-semibold text-[#F8FAFC]">${tf.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL ENGAGEMENT</div><div class="text-4xl font-semibold text-[#F8FAFC]">${te.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">AVG ENG. RATE</div><div class="text-4xl font-semibold text-emerald-400">${rate}<span class="text-2xl">%</span></div></div>
             `;
         }
 
@@ -190,7 +212,7 @@
                 const v = char.total_views.reduce((a,b)=>a+b,0);
                 const e = char.total_engagements.reduce((a,b)=>a+b,0);
                 const f = Math.max(...char.total_followers);
-                const growth = calculateMoMGrowth(char);
+                const rate = v > 0 ? ((e/v)*100).toFixed(1) : 0;
                 const avatar = avatarMap[char.name] || "logo.png";
 
                 const card = document.createElement('div');
@@ -198,16 +220,13 @@
                 card.innerHTML = `
                     <div class="flex items-center gap-4 mb-6">
                         <img src="${avatar}" class="w-12 h-12 rounded-2xl object-cover border border-[#2A2F3A] flex-shrink-0" alt="${char.name}">
-                        <div class="font-semibold text-[17px] leading-tight">${char.name}</div>
+                        <div class="font-semibold text-[17px] leading-tight text-[#F8FAFC]">${char.name}</div>
                     </div>
                     <div class="space-y-3 text-sm">
-                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Views</span> <span class="font-semibold">${v.toLocaleString()}</span></div>
-                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Followers</span> <span class="font-semibold">${f}</span></div>
-                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Engagements</span> <span class="font-semibold">${e.toLocaleString()}</span></div>
-                        <div class="flex justify-between pt-1 border-t border-[#2A2F3A]">
-                            <span class="text-[#9CA3AF]">MoM Growth</span> 
-                            <span class="font-semibold ${growth >= 0 ? 'text-[#67E8F9]' : 'text-red-400'}">${growth.toFixed(1)}%</span>
-                        </div>
+                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Views</span> <span class="font-semibold text-[#F8FAFC]">${v.toLocaleString()}</span></div>
+                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Followers</span> <span class="font-semibold text-[#F8FAFC]">${f}</span></div>
+                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Engagements</span> <span class="font-semibold text-[#F8FAFC]">${e.toLocaleString()}</span></div>
+                        <div class="flex justify-between pt-1 border-t border-[#2A2F3A]"><span class="text-[#9CA3AF]">Eng. Rate</span> <span class="font-semibold text-emerald-400">${rate}%</span></div>
                     </div>
                 `;
                 card.onclick = () => openCharacterModal(char);
@@ -218,12 +237,14 @@
         function sortAndRenderCharacters() {
             const type = document.getElementById('char-sort').value;
             let sorted = [...currentCharacters];
-
             if (type === 'engagement') sorted.sort((a,b) => b.total_engagements.reduce((x,y)=>x+y,0) - a.total_engagements.reduce((x,y)=>x+y,0));
             if (type === 'views') sorted.sort((a,b) => b.total_views.reduce((x,y)=>x+y,0) - a.total_views.reduce((x,y)=>x+y,0));
             if (type === 'followers') sorted.sort((a,b) => Math.max(...b.total_followers) - Math.max(...a.total_followers));
-            if (type === 'growth') sorted.sort((a,b) => calculateMoMGrowth(b) - calculateMoMGrowth(a));
-
+            if (type === 'rate') sorted.sort((a,b) => {
+                const ra = a.total_views.reduce((x,y)=>x+y,0) > 0 ? a.total_engagements.reduce((x,y)=>x+y,0) / a.total_views.reduce((x,y)=>x+y,0) : 0;
+                const rb = b.total_views.reduce((x,y)=>x+y,0) > 0 ? b.total_engagements.reduce((x,y)=>x+y,0) / b.total_views.reduce((x,y)=>x+y,0) : 0;
+                return rb - ra;
+            });
             renderCharacterCards(sorted);
         }
 
@@ -252,34 +273,36 @@
             performanceChart.render();
         }
 
-        function renderGrowthChart() {
-            if (growthChart) growthChart.destroy();
-
-            const sortType = document.getElementById('growth-sort').value;
-            let data = currentCharacters.map(c => ({
-                name: c.name,
-                growth: calculateMoMGrowth(c)
-            }));
-
-            if (sortType === 'growth') {
-                data.sort((a,b) => b.growth - a.growth);
-            } else {
-                data.sort((a,b) => a.name.localeCompare(b.name));
-            }
-
-            growthChart = new ApexCharts(document.querySelector("#growthChart"), {
-                chart: { type: 'bar', height: 320 },
-                series: [{ name: 'MoM Growth %', data: data.map(d => d.growth) }],
-                xaxis: { categories: data.map(d => d.name) },
-                colors: ['#67E8F9'],
-                plotOptions: { bar: { borderRadius: 6 } },
-                tooltip: { theme: 'dark' }
+        function populateTableFilter() {
+            const sel = document.getElementById('table-character-filter');
+            sel.innerHTML = '<option value="all">All Characters</option>';
+            currentCharacters.forEach(c => {
+                const o = document.createElement('option'); o.value = c.name; o.textContent = c.name;
+                sel.appendChild(o);
             });
-            growthChart.render();
         }
 
-        function populateTableFilter() { /* ... */ }
-        function renderMonthlyTable() { /* ... */ }
+        function renderMonthlyTable() {
+            const container = document.getElementById('monthly-table');
+            const filter = document.getElementById('table-character-filter').value;
+            let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
+                <th class="text-left py-4">Character</th><th class="text-left py-4">Month</th>
+                <th class="text-right py-4">Views</th><th class="text-right py-4">Followers</th>
+                <th class="text-right py-4">Engagements</th><th class="text-right py-4">Rate</th></tr></thead><tbody>`;
+
+            currentCharacters.forEach(char => {
+                if (filter !== 'all' && filter !== char.name) return;
+                char.months.forEach((m, i) => {
+                    const v = char.total_views[i]||0, f = char.total_followers[i]||0, e = char.total_engagements[i]||0;
+                    const rate = v > 0 ? ((e/v)*100).toFixed(1) : '0';
+                    html += `<tr class="border-b border-[#2A2F3A]"><td class="py-4 font-medium text-[#F8FAFC]">${char.name}</td><td class="text-[#F8FAFC]">${m}</td>
+                        <td class="text-right text-[#F8FAFC]">${v}</td><td class="text-right text-[#F8FAFC]">${f}</td><td class="text-right text-[#F8FAFC]">${e}</td>
+                        <td class="text-right text-emerald-400">${rate}%</td></tr>`;
+                });
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
 
         function openCharacterModal(char) {
             currentModalCharacter = char;
@@ -306,13 +329,13 @@
             const totalV = char.total_views.reduce((a,b)=>a+b,0);
             const totalE = char.total_engagements.reduce((a,b)=>a+b,0);
             const latestF = Math.max(...char.total_followers);
-            const growth = calculateMoMGrowth(char);
+            const rate = totalV > 0 ? ((totalE/totalV)*100).toFixed(1) : 0;
 
             document.getElementById('modal-summary').innerHTML = `
-                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Views</div><div class="text-3xl font-semibold">${totalV.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Followers</div><div class="text-3xl font-semibold">${latestF}</div></div>
-                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Engagements</div><div class="text-3xl font-semibold">${totalE.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">MoM Growth</div><div class="text-3xl font-semibold text-[#67E8F9]">${growth.toFixed(1)}%</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Views</div><div class="text-3xl font-semibold text-[#F8FAFC]">${totalV.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Followers</div><div class="text-3xl font-semibold text-[#F8FAFC]">${latestF}</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Total Engagements</div><div class="text-3xl font-semibold text-[#F8FAFC]">${totalE.toLocaleString()}</div></div>
+                <div class="glass rounded-2xl p-5"><div class="text-[#9CA3AF] text-sm">Eng. Rate</div><div class="text-3xl font-semibold text-emerald-400">${rate}%</div></div>
             `;
 
             renderModalMonthlyTable(char);
@@ -327,9 +350,9 @@
             char.months.forEach((m, i) => {
                 const v = char.total_views[i]||0, f = char.total_followers[i]||0, e = char.total_engagements[i]||0;
                 const rate = v > 0 ? ((e/v)*100).toFixed(1) : '0';
-                html += `<tr class="border-b border-[#2A2F3A]"><td class="py-3">${m}</td>
-                    <td class="text-right">${v}</td><td class="text-right">${f}</td>
-                    <td class="text-right">${e}</td><td class="text-right text-[#67E8F9]">${rate}%</td></tr>`;
+                html += `<tr class="border-b border-[#2A2F3A]"><td class="py-3 text-[#F8FAFC]">${m}</td>
+                    <td class="text-right text-[#F8FAFC]">${v}</td><td class="text-right text-[#F8FAFC]">${f}</td>
+                    <td class="text-right text-[#F8FAFC]">${e}</td><td class="text-right text-emerald-400">${rate}%</td></tr>`;
             });
             html += `</tbody></table>`;
             container.innerHTML = html;
@@ -337,11 +360,67 @@
 
         function sortModalMonthlyTable() {
             if (!currentModalCharacter) return;
-            // Sorting logic can be added here if needed
+            const sortBy = document.getElementById('modal-month-sort').value;
+            const char = currentModalCharacter;
+            let sortedData = char.months.map((m, i) => ({
+                month: m,
+                views: char.total_views[i] || 0,
+                followers: char.total_followers[i] || 0,
+                engagements: char.total_engagements[i] || 0,
+                rate: char.total_views[i] > 0 ? ((char.total_engagements[i] / char.total_views[i]) * 100) : 0
+            }));
+
+            if (sortBy === 'views') sortedData.sort((a,b) => b.views - a.views);
+            else if (sortBy === 'followers') sortedData.sort((a,b) => b.followers - a.followers);
+            else if (sortBy === 'engagements') sortedData.sort((a,b) => b.engagements - a.engagements);
+            else if (sortBy === 'rate') sortedData.sort((a,b) => b.rate - a.rate);
+
+            const container = document.getElementById('modal-monthly-table');
+            let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
+                <th class="text-left py-3">Month</th><th class="text-right py-3">Views</th>
+                <th class="text-right py-3">Followers</th><th class="text-right py-3">Engagements</th><th class="text-right py-3">Rate</th></tr></thead><tbody>`;
+
+            sortedData.forEach(row => {
+                html += `<tr class="border-b border-[#2A2F3A]"><td class="py-3 text-[#F8FAFC]">${row.month}</td>
+                    <td class="text-right text-[#F8FAFC]">${row.views}</td><td class="text-right text-[#F8FAFC]">${row.followers}</td>
+                    <td class="text-right text-[#F8FAFC]">${row.engagements}</td><td class="text-right text-emerald-400">${row.rate.toFixed(1)}%</td></tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
         }
 
         function renderPlatformBreakdown(char) {
-            // Same as previous
+            const platforms = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
+            const p = char.platforms || {};
+
+            new ApexCharts(document.querySelector("#modal-platform-trend-chart"), {
+                chart: { type: 'bar', height: 280 },
+                series: platforms.map(pl => ({ name: pl, data: p[pl]?.views || [] })),
+                xaxis: { categories: char.months },
+                colors: ['#67E8F9', '#9EEBFF', '#7DADCA', '#f59e0b']
+            }).render();
+
+            const totalPerPlatform = platforms.map(pl => (p[pl]?.views || []).reduce((a,b)=>a+b,0));
+            new ApexCharts(document.querySelector("#modal-platform-share-chart"), {
+                chart: { type: 'donut', height: 280 },
+                series: totalPerPlatform,
+                labels: platforms,
+                colors: ['#67E8F9', '#9EEBFF', '#7DADCA', '#f59e0b']
+            }).render();
+
+            let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
+                <th class="text-left py-3">Month</th><th class="text-right">Instagram</th><th class="text-right">TikTok</th>
+                <th class="text-right">YouTube</th><th class="text-right">Facebook</th></tr></thead><tbody>`;
+
+            char.months.forEach((m, i) => {
+                html += `<tr class="border-b border-[#2A2F3A]"><td class="py-3 text-[#F8FAFC]">${m}</td>
+                    <td class="text-right text-[#F8FAFC]">${p.Instagram?.views[i] || 0}</td>
+                    <td class="text-right text-[#F8FAFC]">${p.TikTok?.views[i] || 0}</td>
+                    <td class="text-right text-[#F8FAFC]">${p.YouTube?.views[i] || 0}</td>
+                    <td class="text-right text-[#F8FAFC]">${p.Facebook?.views[i] || 0}</td></tr>`;
+            });
+            html += `</tbody></table>`;
+            document.getElementById('modal-platform-table').innerHTML = html;
         }
 
         function closeModal() {
