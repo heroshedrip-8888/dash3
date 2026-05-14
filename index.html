@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARROWOW • Analytics</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #021024; color: #F8FAFC; }
+        .glass { background: rgba(15, 23, 42, 0.85); border: 1px solid #2A2F3A; backdrop-filter: blur(20px); }
+        .section-header { font-size: 1rem; font-weight: 600; color: #C1EBFF; }
+        .character-card { transition: all 0.2s ease; cursor: pointer; }
+        .character-card:hover { transform: translateY(-6px); border-color: #67E8F9; }
+        .modal-tab { color: #9CA3AF; border-bottom: 2px solid transparent; }
+        .modal-tab.active { color: #67E8F9; border-bottom-color: #67E8F9; }
+        select { color: #F8FAFC; }
+        select option { background: #0f172a; color: #F8FAFC; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #021024; }
+        ::-webkit-scrollbar-thumb { background: #2A2F3A; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen pb-20">
+    <div class="max-w-screen-2xl mx-auto px-8 pt-8">
+
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div class="flex items-center gap-x-4">
+                <img src="logo.png" alt="Arrowow Logo" class="w-11 h-11 object-contain">
+                <div>
+                    <h1 class="text-4xl font-semibold tracking-tight">ARROWOW</h1>
+                    <p class="text-[#9EEBFF] text-sm -mt-1 tracking-wide">ANALYTICS</p>
+                </div>
+            </div>
+            <div id="last-updated" class="text-emerald-400 text-sm font-medium"></div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="mb-10">
+            <div class="section-header mb-4">OVERVIEW</div>
+            <div id="kpi-row" class="grid grid-cols-2 md:grid-cols-4 gap-5"></div>
+        </div>
+
+        <!-- Characters -->
+        <div class="mb-10">
+            <div class="flex justify-between items-center mb-4">
+                <div class="section-header">CHARACTERS</div>
+                <select id="char-sort" onchange="sortAndRenderCharacters()" class="bg-slate-900 border border-[#2A2F3A] rounded-2xl px-4 py-2 text-sm">
+                    <option value="engagement">Sort by Engagements</option>
+                    <option value="views">Sort by Views</option>
+                    <option value="followers">Sort by Followers</option>
+                    <option value="growth">Sort by MoM Growth</option>
+                </select>
+            </div>
+            <div id="character-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6"></div>
+        </div>
+
+        <!-- Growth Chart -->
+        <div class="glass rounded-2xl p-6 mb-10">
+            <div class="flex justify-between items-center mb-4">
+                <div class="section-header">MONTHLY GROWTH BY CHARACTER</div>
+                <select id="growth-sort" onchange="renderGrowthChart()" class="bg-slate-900 border border-[#2A2F3A] rounded-xl px-4 py-2 text-sm">
+                    <option value="growth">Sort by Growth %</option>
+                    <option value="name">Sort by Name</option>
+                </select>
+            </div>
+            <div id="growthChart"></div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-10">
+            <div class="xl:col-span-7 glass rounded-2xl p-6">
+                <div class="section-header mb-4">MONTHLY VIEWS TREND</div>
+                <div id="viewsChart"></div>
+            </div>
+            <div class="xl:col-span-5 glass rounded-2xl p-6">
+                <div class="section-header mb-4">TOTAL VIEWS BY CHARACTER</div>
+                <div id="charPerformanceChart"></div>
+            </div>
+        </div>
+
+        <!-- Monthly Table -->
+        <div class="glass rounded-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <div class="section-header">MONTHLY PERFORMANCE DATA</div>
+                <select id="table-character-filter" onchange="renderMonthlyTable()" class="bg-slate-900 border border-[#2A2F3A] rounded-2xl px-4 py-2 text-sm">
+                    <option value="all">All Characters</option>
+                </select>
+            </div>
+            <div id="monthly-table" class="overflow-x-auto"></div>
+        </div>
+    </div>
+
+    <!-- Character Modal -->
+    <div id="character-modal" onclick="if(event.target.id==='character-modal')closeModal()" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div onclick="event.stopImmediatePropagation()" class="glass rounded-2xl w-full max-w-5xl mx-4 max-h-[92vh] overflow-hidden">
+            <div class="flex justify-between items-center px-8 py-5 border-b border-[#2A2F3A]">
+                <div class="flex items-center gap-4">
+                    <img id="modal-avatar" class="w-12 h-12 rounded-2xl object-cover border border-[#2A2F3A]">
+                    <div id="modal-character-name" class="text-2xl font-semibold"></div>
+                </div>
+                <button onclick="closeModal()" class="text-3xl text-[#9CA3AF] hover:text-white">&times;</button>
+            </div>
+            <div class="flex border-b border-[#2A2F3A] px-8">
+                <button onclick="switchModalTab(0)" class="modal-tab active px-6 py-3 font-medium text-sm" id="tab-0">Overview</button>
+                <button onclick="switchModalTab(1)" class="modal-tab px-6 py-3 font-medium text-sm" id="tab-1">Platform Breakdown</button>
+            </div>
+            <div class="p-8 overflow-y-auto max-h-[70vh]">
+                <!-- Overview Tab -->
+                <div id="modal-tab-0">
+                    <div id="modal-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"></div>
+                    <div class="mb-2 flex justify-between items-center">
+                        <div class="font-semibold text-[#C1EBFF]">Monthly Performance</div>
+                        <select id="modal-month-sort" onchange="sortModalMonthlyTable()" class="bg-slate-900 border border-[#2A2F3A] rounded-xl px-3 py-1.5 text-sm">
+                            <option value="month">Sort by Month</option>
+                            <option value="views">Sort by Views</option>
+                            <option value="followers">Sort by Followers</option>
+                            <option value="engagements">Sort by Engagements</option>
+                            <option value="rate">Sort by Eng. Rate</option>
+                        </select>
+                    </div>
+                    <div id="modal-monthly-table" class="overflow-x-auto"></div>
+                </div>
+                <!-- Platform Breakdown Tab -->
+                <div id="modal-tab-1" class="hidden">
+                    <div class="mb-4 flex items-center gap-4">
+                        <div class="font-semibold text-[#C1EBFF]">Select Month:</div>
+                        <select id="platform-month-select" onchange="updatePlatformChart()" class="bg-slate-900 border border-[#2A2F3A] rounded-xl px-4 py-2 text-sm"></select>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <div class="lg:col-span-7">
+                            <div class="font-semibold mb-3 text-[#C1EBFF]">Platform Performance (Views)</div>
+                            <div id="modal-platform-bar-chart"></div>
+                        </div>
+                        <div class="lg:col-span-5">
+                            <div class="font-semibold mb-3 text-[#C1EBFF]">Platform Share</div>
+                            <div id="modal-platform-donut-chart"></div>
+                        </div>
+                    </div>
+                    <div class="mt-8">
+                        <div class="font-semibold mb-3 text-[#C1EBFF]">Platform Data Table</div>
+                        <div id="modal-platform-table" class="overflow-x-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ✅ Fixed: removed the extra 'h' from 'hhttps://'
+        const API_URL = "https://script.google.com/macros/s/AKfycbw8FPiWuiZjmCGmB_hgob7m0gkr3SLwXwL_LIbPqK1Gi1PK7pzwptiwep1xtylgF0Bf/exec";
+
+        let currentCharacters = [];
+        let viewsChart = null;
+        let performanceChart = null;
+        let growthChart = null;
+        let currentModalCharacter = null;
+        let modalPlatformBarChart = null;
+        let modalPlatformDonutChart = null;
+
+        const avatarMap = {
+            "Miranda Kiera": "miranda.png",
+            "Ava Sinclair": "ava.png",
+            "Kane Voss": "kane.png",
+            "Chloe Mitchell": "chloe.png",
+            "Melina Mayer": "melina.png",
+            "Aussie Spirit": "Aussie.png"
+        };
+
+        const CHART_COLORS = ['#67E8F9','#9EEBFF','#7DADCA','#f59e0b','#34d399','#f472b6','#a78bfa','#fb923c'];
+
+        const chartTheme = {
+            background: 'transparent',
+            foreColor: '#9CA3AF',
+            toolbar: { show: false }
+        };
+
+        // ─── Data Loading ───────────────────────────────────────────────────────────
+
+        async function loadData() {
+            const status = document.getElementById('last-updated');
+            try {
+                status.innerHTML = `⏳ Loading live data...`;
+                const res = await fetch(API_URL);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                currentCharacters = Object.values(data || {});
+                if (currentCharacters.length === 0) throw new Error('No data returned');
+                status.innerHTML = `✅ Live • Updated just now`;
+            } catch (e) {
+                console.error('Failed to load live data:', e);
+                status.innerHTML = `⚠️ Could not load live data — check API URL or CORS`;
+                currentCharacters = getDemoData();
+            }
+            initDashboard();
+        }
+
+        function getDemoData() {
+            return [
+                {
+                    name: "Miranda Kiera", months: ["Jan","Feb","Mar","Apr"],
+                    total_views: [12000,15000,14000,18000],
+                    total_followers: [2000,2300,2500,2800],
+                    total_engagements: [600,750,700,900],
+                    platforms: {
+                        Instagram: { views:[4000,5000,5000,6000], followers:[800,900,1000,1100], engagements:[200,250,220,300] },
+                        TikTok:    { views:[5000,6000,5500,7000], followers:[700,800,850,950],  engagements:[250,300,280,360] },
+                        YouTube:   { views:[2000,2500,2000,3000], followers:[400,480,520,580],  engagements:[100,130,130,170] },
+                        Facebook:  { views:[1000,1500,1500,2000], followers:[100,120,130,170],  engagements:[50,70,70,70] }
+                    }
+                },
+                {
+                    name: "Ava Sinclair", months: ["Jan","Feb","Mar","Apr"],
+                    total_views: [8000,9500,11000,13000],
+                    total_followers: [1500,1700,1900,2200],
+                    total_engagements: [400,500,580,680],
+                    platforms: {
+                        Instagram: { views:[3000,3500,4000,5000], followers:[600,680,760,860],  engagements:[150,190,210,260] },
+                        TikTok:    { views:[3000,3500,4500,5000], followers:[500,570,660,760],  engagements:[150,180,220,260] },
+                        YouTube:   { views:[1500,1800,1700,2000], followers:[300,350,380,450],  engagements:[70,90,100,110] },
+                        Facebook:  { views:[500,700,800,1000],    followers:[100,100,100,130],  engagements:[30,40,50,50] }
+                    }
+                }
+            ];
+        }
+
+        function initDashboard() {
+            renderKPIs();
+            sortAndRenderCharacters();
+            renderCharts();
+            renderGrowthChart();
+            populateTableFilter();
+            renderMonthlyTable();
+        }
+
+        // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+        function fmt(n) {
+            if (n === undefined || n === null) return '—';
+            if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+            if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
+            return n.toLocaleString();
+        }
+
+        function sumArray(arr) {
+            return (arr || []).reduce((a, b) => a + (Number(b) || 0), 0);
+        }
+
+        function lastVal(arr) {
+            const a = (arr || []).filter(v => v > 0);
+            return a.length ? a[a.length - 1] : 0;
+        }
+
+        function calculateMoMGrowth(char) {
+            const views = char.total_views || [];
+            let lastIndex = -1;
+            for (let i = views.length - 1; i >= 0; i--) {
+                if (views[i] > 0) { lastIndex = i; break; }
+            }
+            if (lastIndex <= 0) return 0;
+            const prev = (char.total_engagements || [])[lastIndex - 1] || 0;
+            const curr = (char.total_engagements || [])[lastIndex] || 0;
+            if (prev === 0) return 0;
+            return ((curr - prev) / prev) * 100;
+        }
+
+        // ─── KPIs ────────────────────────────────────────────────────────────────────
+
+        function renderKPIs() {
+            const totalViews       = currentCharacters.reduce((s, c) => s + sumArray(c.total_views), 0);
+            const totalFollowers   = currentCharacters.reduce((s, c) => s + lastVal(c.total_followers), 0);
+            const totalEngagements = currentCharacters.reduce((s, c) => s + sumArray(c.total_engagements), 0);
+            const charCount        = currentCharacters.length;
+
+            const kpis = [
+                { label: 'Total Views',        value: fmt(totalViews),       icon: '👁️',  color: '#67E8F9' },
+                { label: 'Total Followers',     value: fmt(totalFollowers),   icon: '👥',  color: '#9EEBFF' },
+                { label: 'Total Engagements',   value: fmt(totalEngagements), icon: '💬',  color: '#7DADCA' },
+                { label: 'Active Characters',   value: charCount,             icon: '🎭',  color: '#f59e0b' },
+            ];
+
+            document.getElementById('kpi-row').innerHTML = kpis.map(k => `
+                <div class="glass rounded-2xl p-5">
+                    <div class="text-2xl mb-1">${k.icon}</div>
+                    <div class="text-3xl font-bold" style="color:${k.color}">${k.value}</div>
+                    <div class="text-[#9CA3AF] text-sm mt-1">${k.label}</div>
+                </div>
+            `).join('');
+        }
+
+        // ─── Character Cards ─────────────────────────────────────────────────────────
+
+        function renderCharacterCards(chars) {
+            const grid = document.getElementById('character-grid');
+            if (!chars.length) {
+                grid.innerHTML = `<div class="col-span-full text-center text-[#9CA3AF] py-10">No characters loaded.</div>`;
+                return;
+            }
+            grid.innerHTML = chars.map((char, i) => {
+                const totalV = sumArray(char.total_views);
+                const totalE = sumArray(char.total_engagements);
+                const latestF = lastVal(char.total_followers);
+                const growth  = calculateMoMGrowth(char);
+                const growthColor = growth >= 0 ? '#34d399' : '#f87171';
+                const growthSign  = growth >= 0 ? '+' : '';
+                const avatar = avatarMap[char.name] || 'logo.png';
+                const color  = CHART_COLORS[i % CHART_COLORS.length];
+
+                return `
+                <div class="glass rounded-2xl p-5 character-card" onclick="openCharacterModal(currentCharacters[${i}])">
+                    <div class="flex items-center gap-3 mb-4">
+                        <img src="${avatar}" onerror="this.src='logo.png'" class="w-12 h-12 rounded-xl object-cover border border-[#2A2F3A]">
+                        <div>
+                            <div class="font-semibold text-sm leading-tight">${char.name}</div>
+                            <div class="text-xs mt-0.5" style="color:${growthColor}">${growthSign}${growth.toFixed(1)}% MoM</div>
+                        </div>
+                    </div>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-[#9CA3AF]">Views</span>
+                            <span class="font-medium" style="color:${color}">${fmt(totalV)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-[#9CA3AF]">Followers</span>
+                            <span class="font-medium">${fmt(latestF)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-[#9CA3AF]">Engagements</span>
+                            <span class="font-medium">${fmt(totalE)}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function sortAndRenderCharacters() {
+            const sortBy = document.getElementById('char-sort').value;
+            const sorted = [...currentCharacters].sort((a, b) => {
+                if (sortBy === 'views')      return sumArray(b.total_views) - sumArray(a.total_views);
+                if (sortBy === 'followers')  return lastVal(b.total_followers) - lastVal(a.total_followers);
+                if (sortBy === 'growth')     return calculateMoMGrowth(b) - calculateMoMGrowth(a);
+                return sumArray(b.total_engagements) - sumArray(a.total_engagements); // default: engagement
+            });
+            renderCharacterCards(sorted);
+        }
+
+        // ─── Main Charts ─────────────────────────────────────────────────────────────
+
+        function renderCharts() {
+            if (viewsChart)       { viewsChart.destroy();       viewsChart = null; }
+            if (performanceChart) { performanceChart.destroy(); performanceChart = null; }
+
+            // Collect all months across all characters
+            const allMonths = [...new Set(currentCharacters.flatMap(c => c.months || []))];
+
+            // Monthly Views Trend (line per character)
+            const series = currentCharacters.map((char, i) => ({
+                name: char.name,
+                data: allMonths.map(m => {
+                    const idx = (char.months || []).indexOf(m);
+                    return idx >= 0 ? (char.total_views[idx] || 0) : 0;
+                })
+            }));
+
+            viewsChart = new ApexCharts(document.getElementById('viewsChart'), {
+                chart: { type: 'line', height: 300, ...chartTheme, animations: { enabled: true } },
+                series,
+                xaxis: { categories: allMonths, labels: { style: { colors: '#9CA3AF' } } },
+                yaxis: { labels: { style: { colors: '#9CA3AF' }, formatter: fmt } },
+                colors: CHART_COLORS,
+                stroke: { curve: 'smooth', width: 2.5 },
+                legend: { labels: { colors: '#9CA3AF' } },
+                tooltip: { theme: 'dark' },
+                grid: { borderColor: '#2A2F3A' }
+            });
+            viewsChart.render();
+
+            // Total Views by Character (donut)
+            const charLabels = currentCharacters.map(c => c.name);
+            const charTotals = currentCharacters.map(c => sumArray(c.total_views));
+
+            performanceChart = new ApexCharts(document.getElementById('charPerformanceChart'), {
+                chart: { type: 'donut', height: 300, ...chartTheme },
+                series: charTotals,
+                labels: charLabels,
+                colors: CHART_COLORS,
+                legend: { labels: { colors: '#9CA3AF' }, position: 'bottom' },
+                tooltip: { theme: 'dark' },
+                plotOptions: { pie: { donut: { labels: { show: true, total: { show: true, label: 'Total Views', color: '#9CA3AF', formatter: w => fmt(w.globals.seriesTotals.reduce((a, b) => a + b, 0)) } } } } }
+            });
+            performanceChart.render();
+        }
+
+        // ─── Growth Chart ────────────────────────────────────────────────────────────
+
+        function renderGrowthChart() {
+            if (growthChart) { growthChart.destroy(); growthChart = null; }
+
+            const sortBy = document.getElementById('growth-sort').value;
+            let chars = [...currentCharacters];
+
+            if (sortBy === 'growth') {
+                chars.sort((a, b) => calculateMoMGrowth(b) - calculateMoMGrowth(a));
+            } else {
+                chars.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            const labels  = chars.map(c => c.name);
+            const growths = chars.map(c => parseFloat(calculateMoMGrowth(c).toFixed(2)));
+            const colors  = growths.map(g => g >= 0 ? '#34d399' : '#f87171');
+
+            growthChart = new ApexCharts(document.getElementById('growthChart'), {
+                chart: { type: 'bar', height: 280, ...chartTheme },
+                series: [{ name: 'MoM Growth %', data: growths }],
+                xaxis: { categories: labels, labels: { style: { colors: '#9CA3AF' } } },
+                yaxis: { labels: { style: { colors: '#9CA3AF' }, formatter: v => v.toFixed(1) + '%' } },
+                colors,
+                plotOptions: { bar: { borderRadius: 6, distributed: true } },
+                legend: { show: false },
+                tooltip: { theme: 'dark', y: { formatter: v => v.toFixed(2) + '%' } },
+                grid: { borderColor: '#2A2F3A' }
+            });
+            growthChart.render();
+        }
+
+        // ─── Monthly Table ────────────────────────────────────────────────────────────
+
+        function populateTableFilter() {
+            const sel = document.getElementById('table-character-filter');
+            sel.innerHTML = '<option value="all">All Characters</option>';
+            currentCharacters.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                opt.textContent = c.name;
+                sel.appendChild(opt);
+            });
+        }
+
+        function renderMonthlyTable() {
+            const filterVal = document.getElementById('table-character-filter').value;
+            const chars = filterVal === 'all' ? currentCharacters : currentCharacters.filter(c => c.name === filterVal);
+
+            // Build flat rows
+            let rows = [];
+            chars.forEach(char => {
+                (char.months || []).forEach((month, i) => {
+                    const views       = char.total_views[i] || 0;
+                    const followers   = char.total_followers[i] || 0;
+                    const engagements = char.total_engagements[i] || 0;
+                    const engRate     = views > 0 ? ((engagements / views) * 100).toFixed(2) : '0.00';
+                    rows.push({ character: char.name, month, views, followers, engagements, engRate });
+                });
+            });
+
+            if (!rows.length) {
+                document.getElementById('monthly-table').innerHTML = `<p class="text-[#9CA3AF] text-sm py-4">No data available.</p>`;
+                return;
+            }
+
+            const thCls = 'text-left py-3 px-4 text-[#9CA3AF] font-medium text-xs uppercase tracking-wider';
+            const tdCls = 'py-3 px-4 text-sm';
+
+            let html = `<table class="w-full min-w-[600px]">
+                <thead><tr class="border-b border-[#2A2F3A]">
+                    ${filterVal === 'all' ? `<th class="${thCls}">Character</th>` : ''}
+                    <th class="${thCls}">Month</th>
+                    <th class="${thCls} text-right">Views</th>
+                    <th class="${thCls} text-right">Followers</th>
+                    <th class="${thCls} text-right">Engagements</th>
+                    <th class="${thCls} text-right">Eng. Rate</th>
+                </tr></thead><tbody>`;
+
+            rows.forEach(r => {
+                html += `<tr class="border-b border-[#2A2F3A] hover:bg-white/5 transition-colors">
+                    ${filterVal === 'all' ? `<td class="${tdCls} font-medium">${r.character}</td>` : ''}
+                    <td class="${tdCls}">${r.month}</td>
+                    <td class="${tdCls} text-right">${fmt(r.views)}</td>
+                    <td class="${tdCls} text-right">${fmt(r.followers)}</td>
+                    <td class="${tdCls} text-right">${fmt(r.engagements)}</td>
+                    <td class="${tdCls} text-right">${r.engRate}%</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            document.getElementById('monthly-table').innerHTML = html;
+        }
+
+        // ─── Modal ────────────────────────────────────────────────────────────────────
+
+        function openCharacterModal(char) {
+            currentModalCharacter = char;
+            document.getElementById('character-modal').classList.remove('hidden');
+            document.getElementById('modal-character-name').innerHTML = char.name;
+            document.getElementById('modal-avatar').src = avatarMap[char.name] || 'logo.png';
+            renderModalOverview(char);
+            switchModalTab(0);
+        }
+
+        function renderModalOverview(char) {
+            const totalV = sumArray(char.total_views);
+            const latestF = lastVal(char.total_followers);
+            const totalE = sumArray(char.total_engagements);
+            const growth = calculateMoMGrowth(char);
+            const growthColor = growth >= 0 ? '#34d399' : '#f87171';
+            const growthSign  = growth >= 0 ? '+' : '';
+
+            const stats = [
+                { label: 'Total Views',      value: fmt(totalV),   color: '#67E8F9' },
+                { label: 'Followers',         value: fmt(latestF),  color: '#9EEBFF' },
+                { label: 'Total Engagements', value: fmt(totalE),   color: '#7DADCA' },
+                { label: 'MoM Growth',        value: `${growthSign}${growth.toFixed(1)}%`, color: growthColor },
+            ];
+
+            document.getElementById('modal-summary').innerHTML = stats.map(s => `
+                <div class="glass rounded-xl p-4">
+                    <div class="text-2xl font-bold" style="color:${s.color}">${s.value}</div>
+                    <div class="text-[#9CA3AF] text-xs mt-1">${s.label}</div>
+                </div>
+            `).join('');
+
+            renderModalMonthlyTable(char, 'month');
+        }
+
+        function renderModalMonthlyTable(char, sortBy = 'month') {
+            let rows = (char.months || []).map((month, i) => ({
+                month,
+                views:       char.total_views[i] || 0,
+                followers:   char.total_followers[i] || 0,
+                engagements: char.total_engagements[i] || 0,
+                rate:        char.total_views[i] > 0 ? ((char.total_engagements[i] || 0) / char.total_views[i] * 100) : 0
+            }));
+
+            if (sortBy === 'views')       rows.sort((a, b) => b.views - a.views);
+            else if (sortBy === 'followers')   rows.sort((a, b) => b.followers - a.followers);
+            else if (sortBy === 'engagements') rows.sort((a, b) => b.engagements - a.engagements);
+            else if (sortBy === 'rate')        rows.sort((a, b) => b.rate - a.rate);
+
+            const thCls = 'text-left py-3 px-4 text-[#9CA3AF] font-medium text-xs uppercase tracking-wider';
+            const tdCls = 'py-3 px-4 text-sm';
+
+            let html = `<table class="w-full"><thead><tr class="border-b border-[#2A2F3A]">
+                <th class="${thCls}">Month</th>
+                <th class="${thCls} text-right">Views</th>
+                <th class="${thCls} text-right">Followers</th>
+                <th class="${thCls} text-right">Engagements</th>
+                <th class="${thCls} text-right">Eng. Rate</th>
+            </tr></thead><tbody>`;
+
+            rows.forEach(r => {
+                html += `<tr class="border-b border-[#2A2F3A] hover:bg-white/5 transition-colors">
+                    <td class="${tdCls}">${r.month}</td>
+                    <td class="${tdCls} text-right">${fmt(r.views)}</td>
+                    <td class="${tdCls} text-right">${fmt(r.followers)}</td>
+                    <td class="${tdCls} text-right">${fmt(r.engagements)}</td>
+                    <td class="${tdCls} text-right">${r.rate.toFixed(2)}%</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            document.getElementById('modal-monthly-table').innerHTML = html;
+        }
+
+        function sortModalMonthlyTable() {
+            if (!currentModalCharacter) return;
+            renderModalMonthlyTable(currentModalCharacter, document.getElementById('modal-month-sort').value);
+        }
+
+        function switchModalTab(tabIndex) {
+            document.getElementById('modal-tab-0').classList.toggle('hidden', tabIndex !== 0);
+            document.getElementById('modal-tab-1').classList.toggle('hidden', tabIndex !== 1);
+            document.getElementById('tab-0').classList.toggle('active', tabIndex === 0);
+            document.getElementById('tab-1').classList.toggle('active', tabIndex === 1);
+            if (tabIndex === 1 && currentModalCharacter) setupPlatformBreakdown(currentModalCharacter);
+        }
+
+        function setupPlatformBreakdown(char) {
+            const select = document.getElementById('platform-month-select');
+            select.innerHTML = '';
+            if (!char.months || char.months.length === 0) {
+                select.innerHTML = `<option>No data available</option>`;
+                return;
+            }
+            char.months.forEach((month, index) => {
+                const opt = document.createElement('option');
+                opt.value = index;
+                opt.textContent = month;
+                select.appendChild(opt);
+            });
+            updatePlatformChart();
+        }
+
+        function updatePlatformChart() {
+            const char = currentModalCharacter;
+            if (!char) return;
+
+            const monthIndex = parseInt(document.getElementById('platform-month-select').value) || 0;
+            const platforms  = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
+            const p          = char.platforms || {};
+
+            if (modalPlatformBarChart)   { modalPlatformBarChart.destroy();   modalPlatformBarChart = null; }
+            if (modalPlatformDonutChart) { modalPlatformDonutChart.destroy(); modalPlatformDonutChart = null; }
+
+            const barData = platforms.map(pl => p[pl]?.views?.[monthIndex] || 0);
+
+            modalPlatformBarChart = new ApexCharts(document.getElementById('modal-platform-bar-chart'), {
+                chart: { type: 'bar', height: 280, ...chartTheme },
+                series: [{ name: 'Views', data: barData }],
+                xaxis: { categories: platforms, labels: { style: { colors: '#9CA3AF' } } },
+                yaxis: { labels: { style: { colors: '#9CA3AF' }, formatter: fmt } },
+                colors: CHART_COLORS,
+                plotOptions: { bar: { borderRadius: 6, distributed: true } },
+                legend: { show: false },
+                tooltip: { theme: 'dark' },
+                grid: { borderColor: '#2A2F3A' }
+            });
+            modalPlatformBarChart.render();
+
+            const totalPerPlatform = platforms.map(pl => (p[pl]?.views || []).reduce((a, b) => a + b, 0));
+
+            modalPlatformDonutChart = new ApexCharts(document.getElementById('modal-platform-donut-chart'), {
+                chart: { type: 'donut', height: 280, ...chartTheme },
+                series: totalPerPlatform,
+                labels: platforms,
+                colors: CHART_COLORS,
+                legend: { labels: { colors: '#9CA3AF' }, position: 'bottom' },
+                tooltip: { theme: 'dark' }
+            });
+            modalPlatformDonutChart.render();
+
+            renderPlatformTable(char, monthIndex);
+        }
+
+        function renderPlatformTable(char, monthIndex) {
+            const platforms = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
+            const p = char.platforms || {};
+            const thCls = 'text-left py-3 px-4 text-[#9CA3AF] font-medium text-xs uppercase tracking-wider';
+            const tdCls = 'py-3 px-4 text-sm';
+
+            let html = `<table class="w-full"><thead><tr class="border-b border-[#2A2F3A]">
+                <th class="${thCls}">Platform</th>
+                <th class="${thCls} text-right">Views</th>
+                <th class="${thCls} text-right">Followers</th>
+                <th class="${thCls} text-right">Engagements</th>
+            </tr></thead><tbody>`;
+
+            platforms.forEach(pl => {
+                const views       = p[pl]?.views?.[monthIndex] || 0;
+                const followers   = p[pl]?.followers?.[monthIndex] || 0;
+                const engagements = p[pl]?.engagements?.[monthIndex] || 0;
+                html += `<tr class="border-b border-[#2A2F3A] hover:bg-white/5 transition-colors">
+                    <td class="${tdCls} font-medium">${pl}</td>
+                    <td class="${tdCls} text-right">${fmt(views)}</td>
+                    <td class="${tdCls} text-right">${fmt(followers)}</td>
+                    <td class="${tdCls} text-right">${fmt(engagements)}</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            document.getElementById('modal-platform-table').innerHTML = html;
+        }
+
+        function closeModal() {
+            if (modalPlatformBarChart)   { modalPlatformBarChart.destroy();   modalPlatformBarChart = null; }
+            if (modalPlatformDonutChart) { modalPlatformDonutChart.destroy(); modalPlatformDonutChart = null; }
+            document.getElementById('character-modal').classList.add('hidden');
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
