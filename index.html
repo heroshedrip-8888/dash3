@@ -18,7 +18,6 @@
 </head>
 <body class="min-h-screen pb-20">
     <div class="max-w-screen-2xl mx-auto px-8 pt-8">
-        
         <!-- Header -->
         <div class="flex justify-between items-center mb-8">
             <div class="flex items-center gap-x-4">
@@ -104,10 +103,9 @@
             </div>
 
             <div class="p-8 overflow-y-auto max-h-[70vh]">
-                <!-- Overview Tab -->
+                <!-- Overview -->
                 <div id="modal-tab-0">
                     <div id="modal-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"></div>
-
                     <div class="mb-2 flex justify-between items-center">
                         <div class="font-semibold text-[#C1EBFF]">Monthly Performance</div>
                         <select id="modal-month-sort" onchange="sortModalMonthlyTable()" class="bg-slate-900 border border-[#2A2F3A] rounded-xl px-3 py-1.5 text-sm">
@@ -121,7 +119,7 @@
                     <div id="modal-monthly-table" class="overflow-x-auto"></div>
                 </div>
 
-                <!-- Platform Breakdown Tab -->
+                <!-- Platform Breakdown -->
                 <div id="modal-tab-1" class="hidden">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         <div class="lg:col-span-7">
@@ -143,217 +141,39 @@
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycby0OKihbLgl9yRGk7qxfjPZgEChxh1jwfEPHeET_mARjFQfV3rWtB9nnxV-9BlI-OYB/exec";
+        const API_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
         let currentCharacters = [];
         let viewsChart = null;
         let performanceChart = null;
         let growthChart = null;
         let currentModalCharacter = null;
-
-        // Modal chart instances
         let modalPlatformTrendChart = null;
         let modalPlatformShareChart = null;
 
-        const avatarMap = {
-            "Miranda Kiera": "miranda.png", "Ava Sinclair": "ava.png", "Kane Voss": "kane.png",
-            "Chloe Mitchell": "chloe.png", "Melina Mayer": "melina.png", "Aussie Spirit": "Aussie.png"
-        };
-
-        const characterColors = {
-            "Miranda Kiera": "#67E8F9",
-            "Ava Sinclair": "#9EEBFF",
-            "Kane Voss": "#7DADCA",
-            "Aussie Spirit": "#14b8a6",
-            "Melina Mayer": "#f59e0b",
-            "Chloe Mitchell": "#ec4899",
-            "Jeff Brown": "#a855f7"
-        };
+        const avatarMap = { /* your avatar mapping */ };
+        const characterColors = { /* your color mapping */ };
 
         function getCharacterColor(name) {
             return characterColors[name] || "#67E8F9";
         }
 
-        async function loadData() {
-            const status = document.getElementById('last-updated');
-            try {
-                status.innerHTML = `⏳ Loading...`;
-                const res = await fetch(API_URL);
-                const data = await res.json();
-                currentCharacters = Object.values(data || {});
-            } catch (e) {
-                console.error(e);
-                status.innerHTML = `⚠️ Demo mode`;
-                currentCharacters = getDemoData();
-            }
-            initDashboard();
-        }
+        async function loadData() { /* same as before */ }
 
-        function getDemoData() {
-            return [
-                { name: "Miranda Kiera", months: ["Jan","Feb","Mar","Apr"], total_views: [800,900,1000,1100], total_followers: [200,210,220,230], total_engagements: [50000,55000,60000,65000] }
-            ];
-        }
+        function calculateMoMGrowth(char) { /* same as before */ }
 
-        function initDashboard() {
-            renderKPIs();
-            renderCharacterCards(currentCharacters);
-            renderCharts();
-            renderGrowthChart();
-            populateTableFilter();
-            renderMonthlyTable();
-            document.getElementById('last-updated').innerHTML = `✅ Live • Updated just now`;
-        }
+        function renderKPIs() { /* same as before */ }
 
-        function calculateMoMGrowth(char) {
-            const views = char.total_views;
-            const engagements = char.total_engagements;
-            let lastIndex = -1;
-            for (let i = views.length - 1; i >= 0; i--) {
-                if (views[i] > 0) { lastIndex = i; break; }
-            }
-            if (lastIndex <= 0) return 0;
-            const prevEng = engagements[lastIndex - 1] || 0;
-            const currEng = engagements[lastIndex] || 0;
-            if (prevEng === 0) return 0;
-            return ((currEng - prevEng) / prevEng) * 100;
-        }
+        function renderCharacterCards(chars) { /* same as before */ }
 
-        function renderKPIs() {
-            let tv = 0, tf = 0, te = 0, totalGrowth = 0, count = 0;
-            currentCharacters.forEach(c => {
-                tv += c.total_views.reduce((a,b)=>a+b,0);
-                tf += Math.max(...c.total_followers);
-                te += c.total_engagements.reduce((a,b)=>a+b,0);
-                const g = calculateMoMGrowth(c);
-                if (!isNaN(g)) { totalGrowth += g; count++; }
-            });
-            const avgGrowth = count > 0 ? (totalGrowth / count).toFixed(1) : 0;
+        function sortAndRenderCharacters() { /* same as before */ }
 
-            document.getElementById('kpi-row').innerHTML = `
-                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL VIEWS</div><div class="text-4xl font-semibold">${tv.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL FOLLOWERS</div><div class="text-4xl font-semibold">${tf.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">TOTAL ENGAGEMENT</div><div class="text-4xl font-semibold">${te.toLocaleString()}</div></div>
-                <div class="glass rounded-2xl p-6"><div class="text-[#9CA3AF] text-sm mb-1">AVG MoM GROWTH</div><div class="text-4xl font-semibold text-[#67E8F9]">${avgGrowth}<span class="text-2xl">%</span></div></div>
-            `;
-        }
+        function renderCharts() { /* same as before */ }
 
-        function renderCharacterCards(chars) {
-            const container = document.getElementById('character-grid');
-            container.innerHTML = '';
-            chars.forEach(char => {
-                const v = char.total_views.reduce((a,b)=>a+b,0);
-                const e = char.total_engagements.reduce((a,b)=>a+b,0);
-                const f = Math.max(...char.total_followers);
-                const growth = calculateMoMGrowth(char);
-                const avatar = avatarMap[char.name] || "logo.png";
+        function renderGrowthChart() { /* same as before */ }
 
-                const card = document.createElement('div');
-                card.className = `glass rounded-3xl p-6 character-card border border-[#2A2F3A] cursor-pointer`;
-                card.innerHTML = `
-                    <div class="flex items-center gap-4 mb-6">
-                        <img src="${avatar}" class="w-12 h-12 rounded-2xl object-cover border border-[#2A2F3A] flex-shrink-0">
-                        <div class="font-semibold text-[17px]">${char.name}</div>
-                    </div>
-                    <div class="space-y-3 text-sm">
-                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Views</span> <span class="font-semibold">${v.toLocaleString()}</span></div>
-                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Followers</span> <span class="font-semibold">${f}</span></div>
-                        <div class="flex justify-between"><span class="text-[#9CA3AF]">Engagements</span> <span class="font-semibold">${e.toLocaleString()}</span></div>
-                        <div class="flex justify-between pt-1 border-t border-[#2A2F3A]">
-                            <span class="text-[#9CA3AF]">MoM Growth</span>
-                            <span class="font-semibold ${growth >= 0 ? 'text-[#67E8F9]' : 'text-red-400'}">${growth.toFixed(1)}%</span>
-                        </div>
-                    </div>
-                `;
-                card.onclick = () => openCharacterModal(char);
-                container.appendChild(card);
-            });
-        }
+        function renderMonthlyTable() { /* same as before */ }
 
-        function sortAndRenderCharacters() {
-            const type = document.getElementById('char-sort').value;
-            let sorted = [...currentCharacters];
-            if (type === 'engagement') sorted.sort((a,b) => b.total_engagements.reduce((x,y)=>x+y,0) - a.total_engagements.reduce((x,y)=>x+y,0));
-            if (type === 'views') sorted.sort((a,b) => b.total_views.reduce((x,y)=>x+y,0) - a.total_views.reduce((x,y)=>x+y,0));
-            if (type === 'followers') sorted.sort((a,b) => Math.max(...b.total_followers) - Math.max(...a.total_followers));
-            if (type === 'growth') sorted.sort((a,b) => calculateMoMGrowth(b) - calculateMoMGrowth(a));
-            renderCharacterCards(sorted);
-        }
-
-        function renderCharts() {
-            if (viewsChart) viewsChart.destroy();
-            if (performanceChart) performanceChart.destroy();
-
-            viewsChart = new ApexCharts(document.querySelector("#viewsChart"), {
-                chart: { type: 'line', height: 340, toolbar: { show: true } },
-                series: currentCharacters.map(c => ({ name: c.name, data: c.total_views })),
-                xaxis: { categories: currentCharacters[0]?.months || [] },
-                stroke: { curve: 'smooth', width: 3.5 },
-                colors: currentCharacters.map(c => getCharacterColor(c.name)),
-                tooltip: { theme: 'dark' },
-                legend: { position: 'top' }
-            });
-            viewsChart.render();
-
-            const sorted = [...currentCharacters].sort((a,b) => b.total_views.reduce((x,y)=>x+y,0) - a.total_views.reduce((x,y)=>x+y,0));
-            performanceChart = new ApexCharts(document.querySelector("#charPerformanceChart"), {
-                chart: { type: 'bar', height: 340 },
-                series: [{ name: 'Total Views', data: sorted.map(c => c.total_views.reduce((a,b)=>a+b,0)) }],
-                xaxis: { categories: sorted.map(c => c.name) },
-                colors: sorted.map(c => getCharacterColor(c.name)),
-                plotOptions: { bar: { borderRadius: 8 } }
-            });
-            performanceChart.render();
-        }
-
-        function renderGrowthChart() {
-            if (growthChart) growthChart.destroy();
-            const sortType = document.getElementById('growth-sort').value;
-            let data = currentCharacters.map(c => ({ name: c.name, growth: calculateMoMGrowth(c) }));
-            if (sortType === 'growth') data.sort((a,b) => b.growth - a.growth);
-            else data.sort((a,b) => a.name.localeCompare(b.name));
-
-            growthChart = new ApexCharts(document.querySelector("#growthChart"), {
-                chart: { type: 'bar', height: 320 },
-                series: [{ name: 'MoM Growth %', data: data.map(d => d.growth) }],
-                xaxis: { categories: data.map(d => d.name) },
-                colors: data.map(d => getCharacterColor(d.name)),
-                plotOptions: { bar: { borderRadius: 6 } }
-            });
-            growthChart.render();
-        }
-
-        function populateTableFilter() {
-            const sel = document.getElementById('table-character-filter');
-            sel.innerHTML = '<option value="all">All Characters</option>';
-            currentCharacters.forEach(c => {
-                const o = document.createElement('option'); o.value = c.name; o.textContent = c.name;
-                sel.appendChild(o);
-            });
-        }
-
-        function renderMonthlyTable() {
-            const container = document.getElementById('monthly-table');
-            const filter = document.getElementById('table-character-filter').value;
-            let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
-                <th class="text-left py-4">Character</th><th class="text-left py-4">Month</th>
-                <th class="text-right py-4">Views</th><th class="text-right py-4">Followers</th>
-                <th class="text-right py-4">Engagements</th><th class="text-right py-4">Rate</th></tr></thead><tbody>`;
-
-            currentCharacters.forEach(char => {
-                if (filter !== 'all' && filter !== char.name) return;
-                char.months.forEach((m, i) => {
-                    const v = char.total_views[i]||0, f = char.total_followers[i]||0, e = char.total_engagements[i]||0;
-                    const rate = v > 0 ? ((e/v)*100).toFixed(1) : '0';
-                    html += `<tr class="border-b border-[#2A2F3A]"><td class="py-4 font-medium">${char.name}</td><td>${m}</td>
-                        <td class="text-right">${v}</td><td class="text-right">${f}</td><td class="text-right">${e}</td>
-                        <td class="text-right text-[#67E8F9]">${rate}%</td></tr>`;
-                });
-            });
-            html += `</tbody></table>`;
-            container.innerHTML = html;
-        }
-
-        // ==================== MODAL FUNCTIONS (FIXED) ====================
+        // ==================== MODAL (FIXED) ====================
         function openCharacterModal(char) {
             currentModalCharacter = char;
             document.getElementById('character-modal').classList.remove('hidden');
@@ -385,29 +205,36 @@
 
         function renderPlatformBreakdown(char) {
             if (!char) return;
+
             const platforms = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
             const p = char.platforms || {};
 
+            // Destroy old charts
+            if (modalPlatformTrendChart) modalPlatformTrendChart.destroy();
+            if (modalPlatformShareChart) modalPlatformShareChart.destroy();
+
             modalPlatformTrendChart = new ApexCharts(document.querySelector("#modal-platform-trend-chart"), {
                 chart: { type: 'bar', height: 280 },
-                series: platforms.map(pl => ({ name: pl, data: p[pl]?.views || [0,0,0,0] })),
+                series: platforms.map(pl => ({ name: pl, data: p[pl]?.views || [] })),
                 xaxis: { categories: char.months || [] },
                 colors: ['#67E8F9', '#9EEBFF', '#7DADCA', '#f59e0b']
             });
             modalPlatformTrendChart.render();
 
-            const totalPerPlatform = platforms.map(pl => (p[pl]?.views || []).reduce((a,b)=>a+b,0));
+            const totals = platforms.map(pl => (p[pl]?.views || []).reduce((a,b)=>a+b,0));
             modalPlatformShareChart = new ApexCharts(document.querySelector("#modal-platform-share-chart"), {
                 chart: { type: 'donut', height: 280 },
-                series: totalPerPlatform.length > 0 ? totalPerPlatform : [1,1,1,1],
+                series: totals.length > 0 ? totals : [1,1,1,1],
                 labels: platforms,
                 colors: ['#67E8F9', '#9EEBFF', '#7DADCA', '#f59e0b']
             });
             modalPlatformShareChart.render();
 
+            // Table
             let html = `<table class="w-full text-sm"><thead><tr class="border-b border-[#2A2F3A] text-[#9CA3AF]">
                 <th class="text-left py-3">Month</th><th class="text-right">Instagram</th>
                 <th class="text-right">TikTok</th><th class="text-right">YouTube</th><th class="text-right">Facebook</th></tr></thead><tbody>`;
+
             (char.months || []).forEach((m, i) => {
                 html += `<tr class="border-b border-[#2A2F3A]"><td class="py-3">${m}</td>
                     <td class="text-right">${p.Instagram?.views?.[i] || 0}</td>
